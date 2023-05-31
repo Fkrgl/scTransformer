@@ -84,7 +84,8 @@ class TransformerModel(nn.Module):
     def forward(self,
                 src: Tensor,
                 values: Tensor,
-                key_padding_mask: Tensor):
+                key_padding_mask: Tensor,
+                get_reconstruction: bool = False):
         """
 
         Args:
@@ -102,7 +103,9 @@ class TransformerModel(nn.Module):
         # get predictions and labels for masked values
         masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
         loss = self.loss(masked_label_exp, masked_pred_exp)
-
+        # get reconstructed profiles
+        if get_reconstruction:
+            return mlm_output
         return loss
 
     def get_masked_exp(self, mlm_output, ground_truth, key_padding_mask):

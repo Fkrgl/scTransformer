@@ -190,6 +190,16 @@ class Trainer:
                 test_loss = self.get_test_loss(model, test_loader, x_src)
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}')
                 self.train_log(loss, test_loss, epoch)
+                # if last epoch is reached, get validation reconstructions and perform Classifier2SampleTest
+                if epoch == self.n_epoch - 1:
+                    reconstructed_profiles = self.get_valdiation_reconstructions(model, test_loader, x_src)
+                    n_test = len(train_loader)
+                    print(trainset[:200][0])
+                    print(trainset[:200][0].shape)
+                    random_idx = np.array(np.random.choice(n_train, n_test, replace=True))
+                    training_inputs = torch.vstack([trainset[idx][0] for idx in random_idx])
+                    print(training_inputs)
+                    print(training_inputs.shape)
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
         """
@@ -209,13 +219,23 @@ class Trainer:
         """
         wandb.log({"epoch": epoch+1, "train_loss": loss, "test_loss": test_loss}, step=epoch)
 
+    def get_valdiation_reconstructions(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> Tensor:
+        model.eval()
+        reconstructed_profiles = []
+        for i, (x_val, mask) in enumerate(test_loader):
+            # evaluate the loss
+            reconstructed_profiles.append(model(x_src, x_val, mask, True))
+        model.train()
+        reconstructed_profiles = torch.cat(reconstructed_profiles, dim=0)
+        return reconstructed_profiles
+
 # +-----------------------+ test code +-----------------------+
-wandb_project = 'scTransformer_0'
+wandb_project = 'scTransformer_1'
 
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 50
+n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10

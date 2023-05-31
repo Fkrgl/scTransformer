@@ -23,7 +23,10 @@ print(torch.tensor([1,2,3]) + torch.Tensor([[1, 2, 3], [4, 5, 6]]))
 
 a = torch.randint(0, 10, size=(2,3,4))
 b = torch.randint(0, 10, size=(3,4))
-print(a+b)
+c = torch.randint(0, 10, size=(3,4))
+empty = torch.empty(size=(3,4))
+l = [b, c]
+print(torch.vstack(l).shape)
 
 
 
