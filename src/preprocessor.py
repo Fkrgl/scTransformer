@@ -4,7 +4,7 @@ import numpy as np
 from anndata import AnnData
 
 
-class Preprocessor():
+class Preprocessor:
     """
     prepare row gene expression counts for transformer. Expression counts are 1) filtered 2) normalized 3) log1p
     transformed 4) highly variable genes (hvg) selected 5) value binned
