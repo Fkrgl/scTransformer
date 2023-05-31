@@ -56,7 +56,7 @@ class scDataSet(Dataset):
 
 
 
-dataset = scDataSet('data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200)
+dataset = scDataSet('../data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200)
 # print(dataset.__len__())
 # print(dataset.__getitem__(1))
 trainset, testset = random_split(dataset, [0.9, 0.1])

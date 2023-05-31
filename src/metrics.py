@@ -183,9 +183,15 @@ def c2st_scores(
     if noise_scale is not None:
         X += noise_scale * torch.randn(X.shape)
         Y += noise_scale * torch.randn(Y.shape)
+    # my change
+    X = X.cpu().detach().numpy()
+    Y = Y.cpu().detach().numpy()
+    print(X)
+    print(Y)
+    print(X.shape)
+    print(Y.shape)
 
-    X = X.cpu().numpy()
-    Y = Y.cpu().numpy()
+
 
     clf = clf_class(random_state=seed, **clf_kwargs)
 
@@ -198,7 +204,7 @@ def c2st_scores(
     scores = cross_val_score(
         clf, data, target, cv=shuffle, scoring=metric, verbose=verbosity
     )
-
+    print(scores)
     return scores
 
 

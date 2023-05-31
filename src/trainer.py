@@ -193,13 +193,11 @@ class Trainer:
                 # if last epoch is reached, get validation reconstructions and perform Classifier2SampleTest
                 if epoch == self.n_epoch - 1:
                     reconstructed_profiles = self.get_valdiation_reconstructions(model, test_loader, x_src)
-                    n_test = len(train_loader)
-                    print(trainset[:200][0])
-                    print(trainset[:200][0].shape)
-                    random_idx = np.array(np.random.choice(n_train, n_test, replace=True))
-                    training_inputs = torch.vstack([trainset[idx][0] for idx in random_idx])
-                    print(training_inputs)
-                    print(training_inputs.shape)
+                    val_input = testset[:][0]
+                    print(reconstructed_profiles.shape)
+                    print(val_input.shape)
+                    torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
+                    torch.save(val_input, '../data/val_input_50_epochs.pt')
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
         """
@@ -235,7 +233,7 @@ wandb_project = 'scTransformer_1'
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 1
+n_epoch = 50
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -248,7 +246,7 @@ n_bin = 10
 dropout = 0.5
 min_counts_genes = 10
 seed = 1234
-dataset_path = 'data/Pancreas/endocrinogenesis_day15.h5ad'
+dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 
 # create model
 trainer = Trainer(
