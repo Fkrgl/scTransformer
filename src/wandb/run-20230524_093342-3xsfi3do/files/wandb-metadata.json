@@ -1,0 +1,77 @@
+{
+    "os": "Linux-5.15.0-72-generic-x86_64-with-glibc2.31",
+    "python": "3.11.3",
+    "heartbeatAt": "2023-05-24T07:33:43.279305",
+    "startedAt": "2023-05-24T07:33:42.480430",
+    "docker": null,
+    "cuda": null,
+    "args": [],
+    "state": "running",
+    "program": "/home/florian/Desktop/Uni/Masterarbeit/scRNA-seq-diffusion/src/trainer.py",
+    "codePath": "src/trainer.py",
+    "git": {
+        "remote": "https://github.com/claassenlab/scRNA-seq-diffusion.git",
+        "commit": "193619e004aab5ee9a51584d87288141a67e7721"
+    },
+    "email": "florian.krgl@gmail.com",
+    "root": "/home/florian/Desktop/Uni/Masterarbeit/scRNA-seq-diffusion",
+    "host": "florian-HP-Laptop-14-bs1xx",
+    "username": "florian",
+    "executable": "/usr/bin/my_programs/miniconda3/envs/transformer/bin/python",
+    "cpu_count": 4,
+    "cpu_count_logical": 8,
+    "cpu_freq": {
+        "current": 1691.03975,
+        "min": 400.0,
+        "max": 3400.0
+    },
+    "cpu_freq_per_core": [
+        {
+            "current": 1800.0,
+            "min": 400.0,
+            "max": 3400.0
+        },
+        {
+            "current": 900.005,
+            "min": 400.0,
+            "max": 3400.0
+        },
+        {
+            "current": 1800.0,
+            "min": 400.0,
+            "max": 3400.0
+        },
+        {
+            "current": 1800.0,
+            "min": 400.0,
+            "max": 3400.0
+        },
+        {
+            "current": 1800.0,
+            "min": 400.0,
+            "max": 3400.0
+        },
+        {
+            "current": 1800.0,
+            "min": 400.0,
+            "max": 3400.0
+        },
+        {
+            "current": 1800.0,
+            "min": 400.0,
+            "max": 3400.0
+        },
+        {
+            "current": 1800.0,
+            "min": 400.0,
+            "max": 3400.0
+        }
+    ],
+    "disk": {
+        "total": 67.33123016357422,
+        "used": 60.52429962158203
+    },
+    "memory": {
+        "total": 7.651500701904297
+    }
+}

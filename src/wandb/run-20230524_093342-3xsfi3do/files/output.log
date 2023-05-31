@@ -1,0 +1,7 @@
+
+7551 parameters
+epoch: 1/5, train error = 0.7276, test error = 0.8624
+epoch: 2/5, train error = 0.1885, test error = 0.0655
+epoch: 3/5, train error = 0.0334, test error = 0.0151
+epoch: 4/5, train error = 0.0131, test error = 0.0070
+epoch: 5/5, train error = 0.0052, test error = 0.0052
