@@ -24,7 +24,31 @@ mask_diff = Y[mask] - X[mask]
 not_mask_diff = Y[~mask] - X[~mask]
 print(Y[mask].shape)
 print(mask_diff)
-plt.hist(mask_diff.detach(), color='blue', density=True, edgecolor='black', alpha=0.5, label='masked', bins=20)
-plt.hist(not_mask_diff.detach(), color='orange', density=True, edgecolor='black', alpha=0.5, label='unmasked', bins=20)
+print(Y[zeros])
+#plt.hist(Y[zeros].detach(), bins=30)
+# plt.hist(mask_diff.detach(), color='blue', density=True, edgecolor='black', alpha=0.5, label='masked', bins=25)
+# plt.hist(not_mask_diff.detach(), color='orange', density=True, edgecolor='black', alpha=0.5, label='unmasked', bins=25)
+# plt.legend()
+print(X[:,1].shape)
+X = X.detach().numpy()
+Y = Y.detach().numpy()
+# get difference
+D = Y - X
+var = np.var(D, axis=0)
+sorted_var = sorted(var.tolist(), reverse=True)
+print(sorted_var)
+print(np.where(sorted_var[0] == var))
+print(var[80])
+print(mask[:,80])
+gene_80_mask = mask[:,80]
+X_80_masked = X[gene_80_mask, 80]
+Y_80_masked = Y[gene_80_mask, 80]
+print(X_80_masked.shape, Y_80_masked.shape)
+
+plt.hist(X_80_masked, color='blue', edgecolor='black', alpha=0.5, label='true expression', bins=20)
+plt.hist(Y_80_masked, color='red', edgecolor='black', alpha=0.5, label='predicted expression', bins=20)
+plt.title('Expression of gene 80 over cells where gene is masked in validation set')
+plt.xlabel('expression value')
+plt.ylabel('frequency')
 plt.legend()
 plt.show()
