@@ -192,12 +192,13 @@ class Trainer:
                 self.train_log(loss, test_loss, epoch)
                 # if last epoch is reached, get validation reconstructions and perform Classifier2SampleTest
                 if epoch == self.n_epoch - 1:
-                    reconstructed_profiles = self.get_valdiation_reconstructions(model, test_loader, x_src)
+                    reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
                     val_input = testset[:][0]
                     print(reconstructed_profiles.shape)
                     print(val_input.shape)
                     torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
                     torch.save(val_input, '../data/val_input_50_epochs.pt')
+                    torch.save(masks, '../data/masks_50_epochs.pt')
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
         """
@@ -220,12 +221,15 @@ class Trainer:
     def get_valdiation_reconstructions(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> Tensor:
         model.eval()
         reconstructed_profiles = []
+        masks = []
         for i, (x_val, mask) in enumerate(test_loader):
             # evaluate the loss
             reconstructed_profiles.append(model(x_src, x_val, mask, True))
+            masks.append(mask)
         model.train()
         reconstructed_profiles = torch.cat(reconstructed_profiles, dim=0)
-        return reconstructed_profiles
+        masks = torch.cat(masks, dim=0)
+        return reconstructed_profiles, masks
 
 # +-----------------------+ test code +-----------------------+
 wandb_project = 'scTransformer_1'

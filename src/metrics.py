@@ -199,7 +199,10 @@ def c2st_scores(
     data = np.concatenate((X, Y))
     # labels
     target = np.concatenate((np.zeros((X.shape[0],)), np.ones((Y.shape[0],))))
-
+    print(np.isnan(data))
+    nan_vals = np.where(np.isnan(data))
+    print(nan_vals)
+    print(data[nan_vals[0], nan_vals[1]])
     shuffle = KFold(n_splits=n_folds, shuffle=True, random_state=seed)
     scores = cross_val_score(
         clf, data, target, cv=shuffle, scoring=metric, verbose=verbosity
