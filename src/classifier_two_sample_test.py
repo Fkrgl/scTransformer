@@ -2,6 +2,7 @@ from metrics import *
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 # load tensors
 path_input = '../data/val_input_50_epochs.pt'
@@ -32,23 +33,95 @@ print(Y[zeros])
 print(X[:,1].shape)
 X = X.detach().numpy()
 Y = Y.detach().numpy()
+mask = mask.detach().numpy()
 # get difference
 D = Y - X
 var = np.var(D, axis=0)
 sorted_var = sorted(var.tolist(), reverse=True)
 print(sorted_var)
-print(np.where(sorted_var[0] == var))
-print(var[80])
-print(mask[:,80])
+print(np.where(sorted_var[0] == var)[0][0])
 gene_80_mask = mask[:,80]
 X_80_masked = X[gene_80_mask, 80]
 Y_80_masked = Y[gene_80_mask, 80]
 print(X_80_masked.shape, Y_80_masked.shape)
 
-plt.hist(X_80_masked, color='blue', edgecolor='black', alpha=0.5, label='true expression', bins=20)
-plt.hist(Y_80_masked, color='red', edgecolor='black', alpha=0.5, label='predicted expression', bins=20)
-plt.title('Expression of gene 80 over cells where gene is masked in validation set')
-plt.xlabel('expression value')
-plt.ylabel('frequency')
-plt.legend()
-plt.show()
+mean = np.mean(D, axis=0)
+sorted_mean = sorted(mean.tolist(), reverse=True)
+
+print(mask.shape)
+n_masked = mask.sum(axis=0)
+masked_mean_difference = []
+for i in range(mask.shape[1]):
+    curr_mask = mask[:,i]
+    print(i)
+    diff_gene = ((X[curr_mask, i] - Y[curr_mask, i])**2).sum() / n_masked[i]
+    print(diff_gene)
+    masked_mean_difference.append(diff_gene)
+
+print(masked_mean_difference)
+print(mask.shape[1])
+sorted_mean = sorted(masked_mean_difference, reverse=True)
+print(sorted_mean)
+# plt.hist(X_80_masked, color='blue', edgecolor='black', alpha=0.5, label='true expression', bins=20)
+# plt.hist(Y_80_masked, color='red', edgecolor='black', alpha=0.5, label='predicted expression', bins=20)
+# plt.title('Expression of gene 80 over cells where gene is masked in validation set')
+# plt.xlabel('expression value')
+# plt.ylabel('frequency')
+# plt.legend()
+#plt.show()
+
+def plot_ten_most_variant(X, Y, mask, var, sorted_var):
+    n_row = 2
+    n_col = 5
+    k = 0
+    fig, axs = plt.subplots(n_row, n_col, figsize=(15,5), sharex=True, sharey=True)
+    for i in range(n_row):
+        for j in range(n_col):
+            gene_var = sorted_var[k]
+            gene_idx = np.where(gene_var == var)[0][0]
+            gene_mask = mask[:, gene_idx]
+            X_masked = X[gene_mask, gene_idx]
+            Y_masked = Y[gene_mask, gene_idx]
+            bins = np.histogram(np.hstack((X_masked, Y_masked)), bins=10)[1]
+            axs[i,j].hist(X_masked, color='blue', edgecolor='black', alpha=0.5, label='true expression', bins=bins,
+                          density=True)
+            axs[i,j].hist(Y_masked, color='red', edgecolor='black', alpha=0.5, label='predicted expression', bins=bins,
+                          density=True)
+            k += 1
+    blue_patch = mpatches.Patch(color='blue', label='true')
+    red_patch = mpatches.Patch(color='red', label='predicted')
+    fig.legend(handles=[blue_patch, red_patch])
+    fig.suptitle('predicted and true expression values of top 10 worst predicted genes')
+    fig.supylabel('relative frequency')
+    fig.supxlabel('expression value')
+    plt.show()
+
+
+def plot_ten_most_different(X, Y, mask, mean,sorted_mean):
+    n_row = 2
+    n_col = 5
+    k = 0
+    fig, axs = plt.subplots(n_row, n_col, figsize=(15,5), sharex=True, sharey=True)
+    for i in range(n_row):
+        for j in range(n_col):
+            gene_mean = sorted_mean[k]
+            gene_idx = np.where(gene_mean == mean)[0][0]
+            gene_mask = mask[:, gene_idx]
+            X_masked = X[gene_mask, gene_idx]
+            Y_masked = Y[gene_mask, gene_idx]
+            bins = np.histogram(np.hstack((X_masked, Y_masked)), bins=10)[1]
+            axs[i,j].hist(X_masked, color='blue', edgecolor='black', alpha=0.5, label='true expression', bins=bins,
+                          density=True)
+            axs[i,j].hist(Y_masked, color='red', edgecolor='black', alpha=0.5, label='predicted expression', bins=bins,
+                          density=True)
+            k += 1
+    blue_patch = mpatches.Patch(color='blue', label='true')
+    red_patch = mpatches.Patch(color='red', label='predicted')
+    fig.legend(handles=[blue_patch, red_patch])
+    fig.suptitle('predicted and true expression values of top 10 worst predicted genes')
+    fig.supylabel('relative frequency')
+    fig.supxlabel('expression value')
+    plt.show()
+
+
+plot_ten_most_different(X, Y, mask, masked_mean_difference,sorted_mean)
