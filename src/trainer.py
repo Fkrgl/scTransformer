@@ -232,12 +232,12 @@ class Trainer:
         return reconstructed_profiles, masks
 
 # +-----------------------+ test code +-----------------------+
-wandb_project = 'scTransformer_1'
+wandb_project = 'scTransformer_2'
 
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 50
+n_epoch = 10
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -295,4 +295,27 @@ config = dict(
     dataset=dataset_path
 )
 # start training
-trainer.train(dataset_path, config, wandb_project)
+# trainer.train(dataset_path, config, wandb_project)
+
+# test hyperparameters
+bins = [20, 50, 100]
+for bin in bins:
+    config = dict(
+        batch_size=batch_size,
+        n_token=n_token,
+        n_epoch=n_epoch,
+        eval_interval=eval_interval,
+        learning_rate=learning_rate,
+        eval_iters=eval_iters,
+        split=split,
+        n_embd=n_embd,
+        dim_feedforward=dim_feedforward,
+        n_head=n_head,
+        n_layer=n_layer,
+        n_bin=bin,
+        dropout=dropout,
+        min_counts_genes=min_counts_genes,
+        seed=seed,
+        dataset=dataset_path
+    )
+    trainer.train(dataset_path, config, wandb_project)
