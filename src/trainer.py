@@ -180,6 +180,7 @@ class Trainer:
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
                     # evaluate the loss
+                    print(f'shape of mask: {mask.shape}')
                     loss = model(x_src, x_val, mask)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
@@ -196,9 +197,9 @@ class Trainer:
                     val_input = testset[:][0]
                     print(reconstructed_profiles.shape)
                     print(val_input.shape)
-                    torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
-                    torch.save(val_input, '../data/val_input_50_epochs.pt')
-                    torch.save(masks, '../data/masks_50_epochs.pt')
+                    # torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
+                    # torch.save(val_input, '../data/val_input_50_epochs.pt')
+                    # torch.save(masks, '../data/masks_50_epochs.pt')
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
         """
@@ -232,12 +233,12 @@ class Trainer:
         return reconstructed_profiles, masks
 
 # +-----------------------+ test code +-----------------------+
-wandb_project = 'scTransformer_2'
+wandb_project = 'dummy'
 
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 10
+n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10

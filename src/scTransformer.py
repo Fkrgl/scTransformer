@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
@@ -45,10 +46,10 @@ class TransformerModel(nn.Module):
                                                  norm_first=False
                                                  )
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        # this is the simple decoder from scFromer. scGPT has a more complex decoder, try this out
-        self.decoder = ExprDecoder(self.d_model)
+        # one decoder for each gene
+        self.decoder = np.array([ExprDecoder(self.d_model) for i in range(n_token)])
 
-        self.loss = nn.MSELoss()
+        self.loss = nn.CrossEntropyLoss()
 
         self.init_weights()
 
@@ -98,8 +99,23 @@ class TransformerModel(nn.Module):
         """
 
         transformer_output = self._encode(src, values, key_padding_mask)
-        # each gene emedding gets its own expression value prediction
-        mlm_output = self.decoder(transformer_output)  # (batch, seq_len)
+        # each gene embedding gets its own expression value prediction
+        # loop over batch dimension
+        for batch in transformer_output.shape[0]:
+            mask = key_padding_mask[batch]
+            decoders = self.decoder[mask]
+            # list of masked gene decoder output
+            masked_decoder_outputs = []
+            # loop over decoders of masked genes
+            for decoder in decoders:
+                gene_prediction = decoder(transformer_output) # shape: (n_bins)
+                masked_decoder_outputs.append(gene_prediction)
+
+        mlm_output = torch.vstack(masked_decoder_outputs)  # (len(decoder), n_bins)
+        # ++++++ implement +++++++
+        # we need for each training example a one hot encoded vector (shape n_bins) with a one on the right bin
+        #
+
         # get predictions and labels for masked values
         masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
         loss = self.loss(masked_label_exp, masked_pred_exp)
@@ -192,7 +208,8 @@ class ExprDecoder(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(d_model, d_model),
             nn.LeakyReLU(),
-            nn.Linear(d_model, 1),
+            nn.Linear(d_model, self.n_input_bins),
+            nn.Softmax()
         )
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:
@@ -205,7 +222,7 @@ class ExprDecoder(nn.Module):
         # the input dimension of the linear layer. While going through the layers, only the last dimension will change
         # to the specified output dimension of the linear layer
         pred_value = self.fc(x)  # (batch, seq_len, 1)
-        pred_value = pred_value.squeeze(-1)  # (batch, seq_len)
+        # pred_value = pred_value.squeeze(-1)  # (batch, seq_len)
         return pred_value
 
 

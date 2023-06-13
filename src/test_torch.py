@@ -28,7 +28,8 @@ empty = torch.empty(size=(3,4))
 l = [b, c]
 print(torch.vstack(l).shape)
 
-
+a = torch.tensor([1,2,3])
+print(torch.vstack([a,a]).shape)
 
 # # Example of target with class indices
 # loss = torch.nn.CrossEntropyLoss()
