@@ -33,10 +33,11 @@ class TransformerModel(nn.Module):
         # parameters
         self.d_model = d_model
         self.activation = "relu"
+        self.n_input_bins = n_input_bins
 
         # define the gene encoder
         self.encoder = GeneEncoder(n_token, d_model)
-        self.value_encoder = ValueEncoder(n_input_bins, d_model)
+        self.value_encoder = ValueEncoder(self.n_input_bins, d_model)
         # define the transformer encoder
         encoder_layers = TransformerEncoderLayer(d_model=d_model,
                                                  nhead=nhead,
@@ -46,8 +47,9 @@ class TransformerModel(nn.Module):
                                                  norm_first=False
                                                  )
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
-        # one decoder for each gene
-        self.decoder = np.array([ExprDecoder(self.d_model) for i in range(n_token)])
+        # one decoder for all genes
+        self.decoder = ExprDecoder(self.d_model, self.n_input_bins)
+        self.index = np.arange(n_token)
 
         self.loss = nn.CrossEntropyLoss()
 
@@ -100,23 +102,8 @@ class TransformerModel(nn.Module):
 
         transformer_output = self._encode(src, values, key_padding_mask)
         # each gene embedding gets its own expression value prediction
-        # loop over batch dimension
-        for batch in transformer_output.shape[0]:
-            mask = key_padding_mask[batch]
-            decoders = self.decoder[mask]
-            # list of masked gene decoder output
-            masked_decoder_outputs = []
-            # loop over decoders of masked genes
-            for decoder in decoders:
-                gene_prediction = decoder(transformer_output) # shape: (n_bins)
-                masked_decoder_outputs.append(gene_prediction)
-
-        mlm_output = torch.vstack(masked_decoder_outputs)  # (len(decoder), n_bins)
-        # ++++++ implement +++++++
-        # we need for each training example a one hot encoded vector (shape n_bins) with a one on the right bin
-        #
-
-        # get predictions and labels for masked values
+        mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
+        # get only vectors of masked genes
         masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
         loss = self.loss(masked_label_exp, masked_pred_exp)
         # get reconstructed profiles
@@ -124,12 +111,11 @@ class TransformerModel(nn.Module):
             return mlm_output
         return loss
 
-    def get_masked_exp(self, mlm_output, ground_truth, key_padding_mask):
+    def get_masked_exp(self, mlm_output, values, key_padding_mask):
         """
         calculates the loss per cell using only the masked positions
         Args:
             mlm_output: predicted expr (batch, seq_len)
-            ground_truth: true expr (batch, seq_len)
             key_padding_mask: gene expression mask: (batch, seq_len)
 
         Returns:
@@ -139,16 +125,27 @@ class TransformerModel(nn.Module):
         masked_label_exp = torch.Tensor([])
         for i in range(mlm_output.shape[0]):
             pred = mlm_output[i]
-            label = ground_truth[i]
+            value = values[i]
             mask = key_padding_mask[i]
             masked_pred = pred[mask]
-            masked_label = label[mask]
+            true_bins = value[mask]
+            one_hot_ture_bins = self.get_one_hot(true_bins)
             masked_pred_exp = torch.cat((masked_pred_exp, masked_pred))
-            masked_label_exp = torch.cat((masked_label_exp, masked_label))
+            masked_label_exp = torch.cat((masked_label_exp, one_hot_ture_bins))
         return masked_pred_exp, masked_label_exp
 
-
-
+    def get_one_hot(self, true_bins: list) -> Tensor:
+        '''
+        given a list of true bins, function creates a one hot vector for each bin
+        THINK: Does it make sense to create all one hot vectors in the beginning or is this to memory intense?
+        :return:
+        '''
+        bins_one_hot = []
+        for bin in true_bins:
+            true_expression = torch.zeros(self.n_input_bins)
+            true_expression[bin] = 1
+            bins_one_hot.append(true_expression)
+        return torch.vstack(bins_one_hot)
 class GeneEncoder(nn.Module):
     """
     given a gene expression vector of a cell, the function embedds the vector into lower
@@ -198,7 +195,8 @@ class ExprDecoder(nn.Module):
     def __init__(
         self,
         d_model: int,
-        use_batch_labels: bool = False,
+        n_bins: int,
+        use_batch_labels: bool = False
     ):
         super().__init__()
         # how big should be the hidden layer?
@@ -208,7 +206,7 @@ class ExprDecoder(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(d_model, d_model),
             nn.LeakyReLU(),
-            nn.Linear(d_model, self.n_input_bins),
+            nn.Linear(d_model, n_bins),
             nn.Softmax()
         )
 

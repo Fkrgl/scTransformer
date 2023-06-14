@@ -162,7 +162,6 @@ class Trainer:
             train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=2)
             test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=2)
             n_train = len(trainset)
-
             # set up model
             model = TransformerModel(d_model=self.n_embd,
                                      dim_feedforward=self.dim_feedforward,
@@ -180,7 +179,7 @@ class Trainer:
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
                     # evaluate the loss
-                    print(f'shape of mask: {mask.shape}')
+                    # print(f'shape of mask: {mask.shape}')
                     loss = model(x_src, x_val, mask)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
@@ -238,7 +237,7 @@ wandb_project = 'dummy'
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 1
+n_epoch = 50
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -296,27 +295,27 @@ config = dict(
     dataset=dataset_path
 )
 # start training
-# trainer.train(dataset_path, config, wandb_project)
+trainer.train(dataset_path, config, wandb_project)
 
 # test hyperparameters
-bins = [20, 50, 100]
-for bin in bins:
-    config = dict(
-        batch_size=batch_size,
-        n_token=n_token,
-        n_epoch=n_epoch,
-        eval_interval=eval_interval,
-        learning_rate=learning_rate,
-        eval_iters=eval_iters,
-        split=split,
-        n_embd=n_embd,
-        dim_feedforward=dim_feedforward,
-        n_head=n_head,
-        n_layer=n_layer,
-        n_bin=bin,
-        dropout=dropout,
-        min_counts_genes=min_counts_genes,
-        seed=seed,
-        dataset=dataset_path
-    )
-    trainer.train(dataset_path, config, wandb_project)
+# bins = [20, 50, 100]
+# for bin in bins:
+#     config = dict(
+#         batch_size=batch_size,
+#         n_token=n_token,
+#         n_epoch=n_epoch,
+#         eval_interval=eval_interval,
+#         learning_rate=learning_rate,
+#         eval_iters=eval_iters,
+#         split=split,
+#         n_embd=n_embd,
+#         dim_feedforward=dim_feedforward,
+#         n_head=n_head,
+#         n_layer=n_layer,
+#         n_bin=bin,
+#         dropout=dropout,
+#         min_counts_genes=min_counts_genes,
+#         seed=seed,
+#         dataset=dataset_path
+#     )
+#     trainer.train(dataset_path, config, wandb_project)

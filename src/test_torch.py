@@ -31,6 +31,9 @@ print(torch.vstack(l).shape)
 a = torch.tensor([1,2,3])
 print(torch.vstack([a,a]).shape)
 
+one_hot = torch.nn.functional.one_hot(torch.arange(5), 5)
+print(one_hot[0])
+print(torch.zeros(3))
 # # Example of target with class indices
 # loss = torch.nn.CrossEntropyLoss()
 # input = torch.randn(3, 5, requires_grad=True)
