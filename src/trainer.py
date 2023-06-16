@@ -153,7 +153,9 @@ class Trainer:
         # open training with wandb
         with wandb.init(project=wandb_project, config=config):
             # load and
-            data = scDataSet(path, self.n_bin, self.min_counts_genes, self.n_token, self.mlm_probability)
+            config = wandb.config
+            print(f'mlm_prob: {config.mlm_probability}')
+            data = scDataSet(path, self.n_bin, self.min_counts_genes, self.n_token, config.mlm_probability)
             # encode gene names
             gene_tokens = data.gene_tokens
             n_token = len(gene_tokens)
@@ -235,12 +237,12 @@ class Trainer:
 
 # +-----------------------+ test code +-----------------------+
 # project name needs to be ths same as sweep name
-wandb_project = 'test_sweep'
+wandb_project = 'sweep_mlm_prob2'
 
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 1
+n_epoch = 20
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -252,7 +254,7 @@ n_layer = 2
 n_bin = 10
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = 0.15
+mlm_probability = None
 seed = 1234
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 
@@ -306,18 +308,18 @@ config = dict(
 sweep_configuration = {
     'program': 'trainer.py',
     'method': 'grid',
-    'name': 'test_sweep',
+    'name': wandb_project,
     'metric': {
         'goal': 'minimize',
         'name': 'test_loss'
         },
     'parameters': {
-        'mlm_probability' : {'values': [0.05, 0.15, 0.3, 0.6]}
-
+        'mlm_probability' : {'values': [0.15, 0.9, 0.99]},
      }
 }
 # generate a sweep id
-sweep_id = wandb.sweep(sweep=sweep_configuration, project="test_sweep")
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=wandb_project)
 # create an agant that manages the hyp. param. search
-wandb.agent(sweep_id=sweep_id, function=trainer.train(dataset_path, config, wandb_project))
+# agent expects a funtcion as input, that is why we need the lambda call
+wandb.agent(sweep_id=sweep_id, function=lambda: trainer.train(dataset_path, config, wandb_project))
 

@@ -9,7 +9,7 @@ class scDataSet(Dataset):
                  bins: int,
                  min_counts_genes: int,
                  n_hvg: int,
-                 mlm_probability: float = 0.15
+                 mlm_probability: float
                  ):
         self.mlm_probability = mlm_probability
         # load data
@@ -58,19 +58,19 @@ class scDataSet(Dataset):
 
 
 
-dataset = scDataSet('../data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200)
-# print(dataset.__len__())
-# print(dataset.__getitem__(1))
-trainset, testset = random_split(dataset, [0.9, 0.1])
-train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
-test_loader = DataLoader(testset, batch_size=10, shuffle=True)
-print(trainset.__len__())
-# for epoch in range(3):
-#     for i, (x_val, mask) in enumerate(train_loader):
-#         #print(i)
-#         if (i+1) % 50 == 0:
-#             print(i)
-#             print(x_val)
-#             print(mask)
-
-print(dataset.gene_tokens)
+# dataset = scDataSet('../data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200)
+# # print(dataset.__len__())
+# # print(dataset.__getitem__(1))
+# trainset, testset = random_split(dataset, [0.9, 0.1])
+# train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
+# test_loader = DataLoader(testset, batch_size=10, shuffle=True)
+# print(trainset.__len__())
+# # for epoch in range(3):
+# #     for i, (x_val, mask) in enumerate(train_loader):
+# #         #print(i)
+# #         if (i+1) % 50 == 0:
+# #             print(i)
+# #             print(x_val)
+# #             print(mask)
+#
+# print(dataset.gene_tokens)
