@@ -24,6 +24,7 @@ class Trainer:
                  n_bin: int,
                  dropout: float,
                  min_counts_genes: int,
+                 mlm_probability: int,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
                  test_mode: Optional[bool] = False
@@ -47,6 +48,7 @@ class Trainer:
             test_mode: if true, test mode is active. In test mode, only the training split is considered
         """
         # hyperparameters
+        self.mlm_probability = mlm_probability
         self.batch_size = batch_size
         self.n_token = n_token
         self.n_epoch = n_epoch
@@ -119,7 +121,7 @@ class Trainer:
             data (Tensor): either train or validation data set
 
         Returns:
-        x (Tensor): random subset of data
+            x (Tensor): random subset of data
         """
         n = data.shape[0]
         rand_idx = np.random.randint(low=0, high=n, size=self.batch_size)
@@ -151,7 +153,7 @@ class Trainer:
         # open training with wandb
         with wandb.init(project=wandb_project, config=config):
             # load and
-            data = scDataSet(path, self.n_bin, self.min_counts_genes, self.n_token)
+            data = scDataSet(path, self.n_bin, self.min_counts_genes, self.n_token, self.mlm_probability)
             # encode gene names
             gene_tokens = data.gene_tokens
             n_token = len(gene_tokens)
@@ -232,12 +234,13 @@ class Trainer:
         return reconstructed_profiles, masks
 
 # +-----------------------+ test code +-----------------------+
-wandb_project = 'dummy'
+# project name needs to be ths same as sweep name
+wandb_project = 'test_sweep'
 
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 50
+n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -249,6 +252,7 @@ n_layer = 2
 n_bin = 10
 dropout = 0.5
 min_counts_genes = 10
+mlm_probability = 0.15
 seed = 1234
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 
@@ -268,6 +272,7 @@ trainer = Trainer(
     n_bin=n_bin,
     dropout=dropout,
     min_counts_genes=min_counts_genes,
+    mlm_probability=mlm_probability,
     seed=seed,
     subset=None,
     test_mode=False
@@ -291,31 +296,28 @@ config = dict(
     n_bin=n_bin,
     dropout=dropout,
     min_counts_genes=min_counts_genes,
+    mlm_probability=mlm_probability,
     seed=seed,
     dataset=dataset_path
 )
 # start training
-trainer.train(dataset_path, config, wandb_project)
+#trainer.train(dataset_path, config, wandb_project)
+# make the first try of grid search smaller ! First we are most interested in mlm_probability
+sweep_configuration = {
+    'program': 'trainer.py',
+    'method': 'grid',
+    'name': 'test_sweep',
+    'metric': {
+        'goal': 'minimize',
+        'name': 'test_loss'
+        },
+    'parameters': {
+        'mlm_probability' : {'values': [0.05, 0.15, 0.3, 0.6]}
 
-# test hyperparameters
-# bins = [20, 50, 100]
-# for bin in bins:
-#     config = dict(
-#         batch_size=batch_size,
-#         n_token=n_token,
-#         n_epoch=n_epoch,
-#         eval_interval=eval_interval,
-#         learning_rate=learning_rate,
-#         eval_iters=eval_iters,
-#         split=split,
-#         n_embd=n_embd,
-#         dim_feedforward=dim_feedforward,
-#         n_head=n_head,
-#         n_layer=n_layer,
-#         n_bin=bin,
-#         dropout=dropout,
-#         min_counts_genes=min_counts_genes,
-#         seed=seed,
-#         dataset=dataset_path
-#     )
-#     trainer.train(dataset_path, config, wandb_project)
+     }
+}
+# generate a sweep id
+sweep_id = wandb.sweep(sweep=sweep_configuration, project="test_sweep")
+# create an agant that manages the hyp. param. search
+wandb.agent(sweep_id=sweep_id, function=trainer.train(dataset_path, config, wandb_project))
+

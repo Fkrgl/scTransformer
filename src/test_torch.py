@@ -61,4 +61,3 @@ print(torch.zeros(3))
 # pred = torch.tensor([[2,4], [1, 9]])
 # print(creterion_cce(pred, labels))
 
-

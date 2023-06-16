@@ -8,8 +8,10 @@ class scDataSet(Dataset):
                  path: str,
                  bins: int,
                  min_counts_genes: int,
-                 n_hvg: int
+                 n_hvg: int,
+                 mlm_probability: float = 0.15
                  ):
+        self.mlm_probability = mlm_probability
         # load data
         self.data = scv.datasets.pancreas(path)
         # preprocess data
@@ -27,14 +29,14 @@ class scDataSet(Dataset):
 
     def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
         """
-        perfoms all preprocessing steps for scRNA data
+        performs all preprocessing steps for scRNA data
         """
         p = Preprocessor(data, bins, min_counts_genes, n_hvg)
         p.preprocess()
         tokens = p.get_gene_tokens()
         return p.binned_data, tokens
 
-    def get_mask(self, expressions: torch.Tensor, mlm_probability: float = 0.15) -> torch.Tensor:
+    def get_mask(self, expressions: torch.Tensor) -> torch.Tensor:
         """
         generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
         process. More information here:
@@ -48,7 +50,7 @@ class scDataSet(Dataset):
 
         """
         shape = expressions.shape
-        probability_matrix = torch.full(shape, mlm_probability)
+        probability_matrix = torch.full(shape, self.mlm_probability)
         mask = torch.bernoulli(probability_matrix).bool()
         return mask
 
