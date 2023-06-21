@@ -237,7 +237,7 @@ class Trainer:
 
 # +-----------------------+ test code +-----------------------+
 # project name needs to be ths same as sweep name
-wandb_project = 'sweep_mlm_prob4'
+wandb_project = 'sweep_mlm_prob3'
 
 # hyperparameters
 batch_size = 10
@@ -314,7 +314,7 @@ sweep_configuration = {
         'name': 'test_loss'
         },
     'parameters': {
-        'mlm_probability' : {'values': [0.05, 0.5, 0.95]},
+        'mlm_probability' : {'values': [0.9]},
      }
 }
 # generate a sweep id
