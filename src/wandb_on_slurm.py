@@ -17,7 +17,7 @@ result = subprocess.run(['scontrol', 'show', 'hostnames'], stdout=subprocess.PIP
 node_list = result.stdout.decode('utf-8').split('\n')[:-1]
 
 @click.command()
-@click.argument("config_yaml")
+@click.argument("config.yaml")
 @click.argument("train_file")
 @click.argument("project_name")
 def run(config_yaml, train_file, project_name):
