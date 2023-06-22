@@ -4,8 +4,8 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --time=30            # Runtime in D-HH:MM
 #SBATCH --gres=gpu:1    # optionally type and number of gpus
-#SBATCH -o /mnt/qb/work/claassen/cxb257/out/hostname_%j.out # Standard output - make sure this is not on $HOME
-#SBATCH -e /mnt/qb/work/claassen/cxb257/err/hostname_%j.err # Standard error - make sure this is not on $HOME
+#SBATCH -o /mnt/qb/work/claassen/cxb257/out/%j.out # Standard output - make sure this is not on $HOME
+#SBATCH -e /mnt/qb/work/claassen/cxb257/err/%j.err # Standard error - make sure this is not on $HOME
 
 WANDB_PROJECT=$1
 SWEEP_ID=$2

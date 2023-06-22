@@ -9,7 +9,7 @@ class scDataSet(Dataset):
                  bins: int,
                  min_counts_genes: int,
                  n_hvg: int,
-                 mlm_probability: float
+                 mlm_probability: float,
                  ):
         self.mlm_probability = mlm_probability
         # load data
@@ -55,9 +55,9 @@ class scDataSet(Dataset):
         return mask
 
 
-dataset = scDataSet('../data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200, 0.9)
-print(dataset.__len__())
-print(dataset.__getitem__(1))
+# dataset = scDataSet('../data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200, 0.9)
+# print(dataset.__len__())
+# print(dataset.__getitem__(1))
 # trainset, testset = random_split(dataset, [0.9, 0.1])
 # train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
 # test_loader = DataLoader(testset, batch_size=10, shuffle=True)

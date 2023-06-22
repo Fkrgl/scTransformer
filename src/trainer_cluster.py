@@ -163,8 +163,10 @@ class Trainer:
             x_src = torch.tensor(encode(gene_tokens))
             # split data
             trainset, testset = random_split(data, [self.split, 1 - self.split])
-            train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=2)
-            test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=2)
+            # trainset = trainset.to(self.device)
+            # testset = testset.to(self.device)
+            train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=4)
+            test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=4)
             n_train = len(trainset)
             # set up model
             model = TransformerModel(d_model=self.n_embd,
@@ -184,7 +186,7 @@ class Trainer:
                 for i, (x_val, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
-                    loss = model(x_src, x_val, mask)
+                    loss = model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device))
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
@@ -237,9 +239,9 @@ class Trainer:
 
 if __name__ == '__main__':
     # hyperparameters
-    batch_size = 10
+    batch_size = 16
     n_token = 200
-    n_epoch = 20
+    n_epoch = 50
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
@@ -276,25 +278,5 @@ if __name__ == '__main__':
         subset=None,
         test_mode=False
     )
-
-    # config = dict(
-    #     batch_size=batch_size,
-    #     n_token=n_token,
-    #     n_epoch=n_epoch,
-    #     eval_interval=eval_interval,
-    #     learning_rate=learning_rate,
-    #     eval_iters=eval_iters,
-    #     split=split,
-    #     n_embd=n_embd,
-    #     dim_feedforward=dim_feedforward,
-    #     n_head=n_head,
-    #     n_layer=n_layer,
-    #     n_bin=n_bin,
-    #     dropout=dropout,
-    #     min_counts_genes=min_counts_genes,
-    #     mlm_probability=mlm_probability,
-    #     seed=seed,
-    #     dataset=dataset_path
-    # )
 
     trainer.train(dataset_path)
