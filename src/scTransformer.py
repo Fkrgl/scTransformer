@@ -5,6 +5,7 @@ from torch import Tensor
 from typing import Optional, Dict
 # encoder layers are based on paper "Attention is all you need"
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
+from torchmetrics import Accuracy
 
 
 class TransformerModel(nn.Module):
@@ -52,6 +53,7 @@ class TransformerModel(nn.Module):
         self.index = np.arange(n_token)
 
         self.loss = nn.CrossEntropyLoss()
+        self.acc_function = Accuracy(task='multiclass', num_classes=self.n_input_bins)
 
         self.init_weights()
 
@@ -88,7 +90,8 @@ class TransformerModel(nn.Module):
                 src: Tensor,
                 values: Tensor,
                 key_padding_mask: Tensor,
-                get_reconstruction: bool = False):
+                get_reconstruction: bool = False,
+                get_accuracy: bool = False):
         """
 
         Args:
@@ -106,10 +109,17 @@ class TransformerModel(nn.Module):
         # get only vectors of masked genes
         masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
         loss = self.loss(masked_label_exp, masked_pred_exp)
+        output = loss
         # get reconstructed profiles
         if get_reconstruction:
-            return mlm_output
-        return loss
+            output = mlm_output
+        # accuracy here
+        # accuracy is only computed using masked values
+        if get_accuracy:
+            acc_value = self.acc_function(masked_pred_exp, masked_label_exp)
+            output = (loss, acc_value)
+
+        return output
 
     def get_masked_exp(self, mlm_output, values, key_padding_mask):
         """

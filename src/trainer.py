@@ -6,6 +6,7 @@ import scvelo as scv
 import numpy as np
 from DataSet import scDataSet
 import wandb
+from typing import Tuple
 
 
 class Trainer:
@@ -191,9 +192,10 @@ class Trainer:
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
-                test_loss = self.get_test_loss(model, test_loader, x_src)
-                print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}')
-                self.train_log(loss, test_loss, epoch)
+                test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
+                print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
+                      f', accuracy = {test_accuracy:.4f}')
+                self.train_log(loss, test_loss, test_accuracy, epoch)
                 # if last epoch is reached, get validation reconstructions and perform Classifier2SampleTest
                 if epoch == self.n_epoch - 1:
                     reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
@@ -216,11 +218,28 @@ class Trainer:
         model.train()
         return np.mean(losses)
 
-    def train_log(self, loss: float, test_loss: float, epoch: int) -> None:
+    def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) \
+            -> Tuple[float, float]:
+        """
+        uses a whole run of the validation set to compute the accuracy
+        """
+        model.eval()
+        acc = []
+        loss = []
+        for i, (x_val, mask) in enumerate(test_loader):
+            # evaluate the loss
+            l, a = model(x_src, x_val, mask, get_accuracy=True)
+            loss.append(l.item())
+            acc.append(a.item())
+        model.train()
+        return (float(np.mean(loss)), float(np.mean(acc)))
+
+    def train_log(self, loss: float, test_loss: float, test_accuracy:float, epoch: int) -> None:
         """
         parameters tracked by wandb
         """
-        wandb.log({"epoch": epoch+1, "train_loss": loss, "test_loss": test_loss}, step=epoch)
+        wandb.log({"epoch": epoch+1, "train_loss": loss, "test_loss": test_loss, "test_accuracy": test_accuracy}
+                  , step=epoch)
 
     def get_valdiation_reconstructions(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> Tensor:
         model.eval()
@@ -237,12 +256,12 @@ class Trainer:
 
 # +-----------------------+ test code +-----------------------+
 # project name needs to be ths same as sweep name
-wandb_project = 'sweep_mlm_prob3'
+wandb_project = 'dummy'
 
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 20
+n_epoch = 50
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -254,7 +273,7 @@ n_layer = 2
 n_bin = 10
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = None
+mlm_probability = 0.1
 seed = 1234
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 
@@ -303,7 +322,7 @@ config = dict(
     dataset=dataset_path
 )
 # start training
-#trainer.train(dataset_path, config, wandb_project)
+trainer.train(dataset_path, config, wandb_project)
 # make the first try of grid search smaller ! First we are most interested in mlm_probability
 sweep_configuration = {
     'program': 'trainer.py',
@@ -318,8 +337,8 @@ sweep_configuration = {
      }
 }
 # generate a sweep id
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=wandb_project)
-# create an agant that manages the hyp. param. search
-# agent expects a funtcion as input, that is why we need the lambda call
-wandb.agent(sweep_id=sweep_id, function=lambda: trainer.train(dataset_path, config, wandb_project))
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project=wandb_project)
+# # create an agant that manages the hyp. param. search
+# # agent expects a funtcion as input, that is why we need the lambda call
+# wandb.agent(sweep_id=sweep_id, function=lambda: trainer.train(dataset_path, config, wandb_project))
 
