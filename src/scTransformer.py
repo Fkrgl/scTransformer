@@ -35,6 +35,7 @@ class TransformerModel(nn.Module):
         self.d_model = d_model
         self.activation = "relu"
         self.n_input_bins = n_input_bins
+        self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # define the gene encoder
         self.encoder = GeneEncoder(n_token, d_model)
@@ -78,13 +79,18 @@ class TransformerModel(nn.Module):
             embedding tensor: (batch, seq_len, embsize)
         """
         # gene embedding
+        print(f'src is cuda? {src.is_cuda}')
         src = self.encoder(src)
+        print(f'src is cuda? {src.is_cuda}')
+        print(f'values is cuda? {values.is_cuda}')
         values = self.value_encoder(values)
+        print(f'values is cuda? {values.is_cuda}')
         # combined embedding (broadcasting)
         total_embedding = src + values
+        print(f'total_embedding is cuda? {total_embedding.is_cuda}')
         output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)
 
-        return output  # (batch, seq_len, embsize)
+        return output.to(self.device)  # (batch, seq_len, embsize)
 
     def forward(self,
                 src: Tensor,
@@ -131,8 +137,8 @@ class TransformerModel(nn.Module):
         Returns:
             predicted and ground truth expression of masked genes
         """
-        masked_pred_exp = torch.Tensor([])
-        masked_label_exp = torch.Tensor([])
+        masked_pred_exp = torch.Tensor([]).to(self.device)
+        masked_label_exp = torch.Tensor([]).to(self.device)
         for i in range(mlm_output.shape[0]):
             pred = mlm_output[i]
             value = values[i]
@@ -140,8 +146,8 @@ class TransformerModel(nn.Module):
             masked_pred = pred[mask]
             true_bins = value[mask]
             one_hot_ture_bins = self.get_one_hot(true_bins)
-            masked_pred_exp = torch.cat((masked_pred_exp, masked_pred))
-            masked_label_exp = torch.cat((masked_label_exp, one_hot_ture_bins))
+            masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)))
+            masked_label_exp = torch.cat((masked_label_exp, one_hot_ture_bins.to(self.device)))
         return masked_pred_exp, masked_label_exp
 
     def get_one_hot(self, true_bins: list) -> Tensor:

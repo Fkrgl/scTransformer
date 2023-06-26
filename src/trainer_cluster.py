@@ -6,7 +6,7 @@ import scvelo as scv
 import numpy as np
 from DataSet import scDataSet
 import wandb
-
+from typing import Tuple
 
 class Trainer:
     def __init__(self,
@@ -69,6 +69,9 @@ class Trainer:
             print('random seed active')
         self.subset = subset
         self.test_mode = test_mode
+        print(f'cuda available: {torch.cuda.is_available()}')
+        print(f'device: {self.device}')
+        print(torch.zeros(1).cuda())
 
     # +---------------------------+ prepare the data +---------------------------+
     def load_data(self):
@@ -193,9 +196,10 @@ class Trainer:
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
-                test_loss = self.get_test_loss(model, test_loader, x_src)
-                print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}')
-                self.train_log(loss, test_loss, epoch)
+                test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
+                print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
+                      f', accuracy = {test_accuracy:.4f}')
+                self.train_log(loss, test_loss, test_accuracy, epoch)
                 # if last epoch is reached, get validation reconstructions and perform Classifier2SampleTest
                 if epoch == self.n_epoch - 1:
                     reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
@@ -206,23 +210,28 @@ class Trainer:
                     # torch.save(val_input, '../data/val_input_50_epochs.pt')
                     # torch.save(masks, '../data/masks_50_epochs.pt')
 
-    def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
+    def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) \
+            -> Tuple[float, float]:
         """
-        runs whole training set for evaluating the test error
+        uses a whole run of the validation set to compute the accuracy
         """
         model.eval()
-        losses = []
+        acc = []
+        loss = []
         for i, (x_val, mask) in enumerate(test_loader):
             # evaluate the loss
-            losses.append(model(x_src, x_val, mask).item())
+            l, a = model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device), get_accuracy=True)
+            loss.append(l.item())
+            acc.append(a.item())
         model.train()
-        return np.mean(losses)
+        return (float(np.mean(loss)), float(np.mean(acc)))
 
-    def train_log(self, loss: float, test_loss: float, epoch: int) -> None:
+    def train_log(self, loss: float, test_loss: float, test_accuracy:float, epoch: int) -> None:
         """
         parameters tracked by wandb
         """
-        wandb.log({"epoch": epoch+1, "train_loss": loss, "test_loss": test_loss}, step=epoch)
+        wandb.log({"epoch": epoch+1, "train_loss": loss, "test_loss": test_loss, "test_accuracy": test_accuracy}
+                  , step=epoch)
 
     def get_valdiation_reconstructions(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> Tensor:
         model.eval()
@@ -230,7 +239,7 @@ class Trainer:
         masks = []
         for i, (x_val, mask) in enumerate(test_loader):
             # evaluate the loss
-            reconstructed_profiles.append(model(x_src, x_val, mask, True))
+            reconstructed_profiles.append(model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device), True))
             masks.append(mask)
         model.train()
         reconstructed_profiles = torch.cat(reconstructed_profiles, dim=0)
@@ -241,7 +250,7 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 16
     n_token = 200
-    n_epoch = 50
+    n_epoch = 5
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
