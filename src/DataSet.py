@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import scvelo as scv
 from preprocessor import Preprocessor
+import numpy as np
 
 class scDataSet(Dataset):
     def __init__(self,
@@ -52,6 +53,15 @@ class scDataSet(Dataset):
         shape = expressions.shape
         probability_matrix = torch.full(shape, self.mlm_probability)
         mask = torch.bernoulli(probability_matrix).bool()
+        ### for test purpose
+        # case 1: all genes are masked and one has to be unmasked
+        if torch.all(mask):
+            idx = np.random.randint(len(mask))
+            mask[idx] = False
+        # case 2: no gene is masked and at least one has to be masked
+        if not torch.any(mask):
+            idx = np.random.randint(len(mask))
+            mask[idx] = True
         return mask
 
 

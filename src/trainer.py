@@ -202,9 +202,9 @@ class Trainer:
                     val_input = testset[:][0]
                     print(reconstructed_profiles.shape)
                     print(val_input.shape)
-                    # torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
-                    # torch.save(val_input, '../data/val_input_50_epochs.pt')
-                    # torch.save(masks, '../data/masks_50_epochs.pt')
+                    torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
+                    torch.save(val_input, '../data/val_input_50_epochs.pt')
+                    torch.save(masks, '../data/masks_50_epochs.pt')
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
         """
@@ -261,7 +261,7 @@ wandb_project = 'dummy'
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 50
+n_epoch = 10
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -273,7 +273,7 @@ n_layer = 2
 n_bin = 10
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = 0.1
+mlm_probability = 0.15
 seed = 1234
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 

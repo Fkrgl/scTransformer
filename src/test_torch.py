@@ -61,3 +61,18 @@ print(torch.zeros(3))
 # pred = torch.tensor([[2,4], [1, 9]])
 # print(creterion_cce(pred, labels))
 
+label = torch.load('../data/val_input_50_epochs.pt')
+pred = torch.load('../data/reconstructed_profiles_50_epochs.pt')
+mask = torch.load('../data/masks_50_epochs.pt')
+print(mask[1])
+l = label[1]
+p = pred[1]
+m = mask[1]
+# print(l[m])
+# print(l[m].shape)
+# print(p[m])
+# print(p[m].shape)
+# print(torch.sum(p[m], dim=1))
+# print(torch.sum(p[m], dim=1).shape)
+print(pred[0,1,:])
+print(torch.sum(pred[0,1,:]))

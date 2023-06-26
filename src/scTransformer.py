@@ -79,15 +79,10 @@ class TransformerModel(nn.Module):
             embedding tensor: (batch, seq_len, embsize)
         """
         # gene embedding
-        print(f'src is cuda? {src.is_cuda}')
         src = self.encoder(src)
-        print(f'src is cuda? {src.is_cuda}')
-        print(f'values is cuda? {values.is_cuda}')
         values = self.value_encoder(values)
-        print(f'values is cuda? {values.is_cuda}')
         # combined embedding (broadcasting)
         total_embedding = src + values
-        print(f'total_embedding is cuda? {total_embedding.is_cuda}')
         output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)
 
         return output.to(self.device)  # (batch, seq_len, embsize)
@@ -223,7 +218,7 @@ class ExprDecoder(nn.Module):
             nn.Linear(d_model, d_model),
             nn.LeakyReLU(),
             nn.Linear(d_model, n_bins),
-            nn.Softmax()
+            #nn.Softmax()
         )
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:
