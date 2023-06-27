@@ -79,15 +79,10 @@ class TransformerModel(nn.Module):
             embedding tensor: (batch, seq_len, embsize)
         """
         # gene embedding
-        print(f'src is cuda? {src.is_cuda}')
         src = self.encoder(src)
-        print(f'src is cuda? {src.is_cuda}')
-        print(f'values is cuda? {values.is_cuda}')
         values = self.value_encoder(values)
-        print(f'values is cuda? {values.is_cuda}')
         # combined embedding (broadcasting)
         total_embedding = src + values
-        print(f'total_embedding is cuda? {total_embedding.is_cuda}')
         output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)
 
         return output.to(self.device)  # (batch, seq_len, embsize)
@@ -114,7 +109,7 @@ class TransformerModel(nn.Module):
         mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
         # get only vectors of masked genes
         masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
-        loss = self.loss(masked_label_exp, masked_pred_exp)
+        loss = self.loss(masked_pred_exp, masked_label_exp)
         output = loss
         # get reconstructed profiles
         if get_reconstruction:
@@ -145,10 +140,13 @@ class TransformerModel(nn.Module):
             mask = key_padding_mask[i]
             masked_pred = pred[mask]
             true_bins = value[mask]
-            one_hot_ture_bins = self.get_one_hot(true_bins)
-            masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)))
-            masked_label_exp = torch.cat((masked_label_exp, one_hot_ture_bins.to(self.device)))
-        return masked_pred_exp, masked_label_exp
+            # print(f'{masked_pred}\n{masked_pred.shape}')
+            # print(f'{true_bins}\n{true_bins.shape}')
+            masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)), dim=0)
+            masked_label_exp = torch.cat((masked_label_exp, true_bins.to(self.device)))
+        # print(f'{masked_label_exp}\n{masked_label_exp.shape}')
+        # print(f'{masked_pred_exp}\n{masked_pred_exp.shape}')
+        return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
     def get_one_hot(self, true_bins: list) -> Tensor:
         '''
@@ -222,8 +220,7 @@ class ExprDecoder(nn.Module):
             nn.LeakyReLU(),
             nn.Linear(d_model, d_model),
             nn.LeakyReLU(),
-            nn.Linear(d_model, n_bins),
-            nn.Softmax()
+            nn.Linear(d_model, n_bins)
         )
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:

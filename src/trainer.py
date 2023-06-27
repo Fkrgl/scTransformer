@@ -261,7 +261,7 @@ wandb_project = 'dummy'
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 50
+n_epoch = 5
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
