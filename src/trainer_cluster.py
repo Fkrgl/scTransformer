@@ -184,7 +184,6 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
-
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
                     # evaluate the loss
@@ -248,7 +247,7 @@ class Trainer:
 
 if __name__ == '__main__':
     # hyperparameters
-    batch_size = 16
+    batch_size = 128
     n_token = 200
     n_epoch = 50
     eval_interval = 100

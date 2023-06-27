@@ -180,7 +180,9 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
-
+            test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
+            print(f'epoch: {0}/{self.n_epoch}, test error = {test_loss:.4f}'
+                  f', accuracy = {test_accuracy:.4f}')
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
                     # evaluate the loss
