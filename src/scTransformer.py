@@ -134,6 +134,7 @@ class TransformerModel(nn.Module):
         """
         masked_pred_exp = torch.Tensor([]).to(self.device)
         masked_label_exp = torch.Tensor([]).to(self.device)
+        ###### braucen wir diesen loop ueberhaupt noch?!
         for i in range(mlm_output.shape[0]):
             pred = mlm_output[i]
             value = values[i]
@@ -148,18 +149,6 @@ class TransformerModel(nn.Module):
         # print(f'{masked_pred_exp}\n{masked_pred_exp.shape}')
         return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
-    def get_one_hot(self, true_bins: list) -> Tensor:
-        '''
-        given a list of true bins, function creates a one hot vector for each bin
-        THINK: Does it make sense to create all one hot vectors in the beginning or is this to memory intense?
-        :return:
-        '''
-        bins_one_hot = []
-        for bin in true_bins:
-            true_expression = torch.zeros(self.n_input_bins)
-            true_expression[bin] = 1
-            bins_one_hot.append(true_expression)
-        return torch.vstack(bins_one_hot)
 class GeneEncoder(nn.Module):
     """
     given a gene expression vector of a cell, the function embedds the vector into lower
