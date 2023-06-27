@@ -5,17 +5,12 @@ from preprocessor import Preprocessor
 
 class scDataSet(Dataset):
     def __init__(self,
-                 path: str,
-                 bins: int,
-                 min_counts_genes: int,
-                 n_hvg: int,
-                 mlm_probability: float,
+                 data,
+                 mlm_probability: float
                  ):
         self.mlm_probability = mlm_probability
         # load data
-        self.data = scv.datasets.pancreas(path)
-        # preprocess data
-        self.data, self.gene_tokens = self.preprocess_data(self.data, bins, min_counts_genes, n_hvg)
+        self.data = data
 
     def __len__(self):
         return len(self.data)
@@ -27,14 +22,14 @@ class scDataSet(Dataset):
         mask = self.get_mask(sample)
         return sample, mask
 
-    def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
-        """
-        performs all preprocessing steps for scRNA data
-        """
-        p = Preprocessor(data, bins, min_counts_genes, n_hvg)
-        p.preprocess()
-        tokens = p.get_gene_tokens()
-        return p.binned_data, tokens
+    # def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
+    #     """
+    #     performs all preprocessing steps for scRNA data
+    #     """
+    #     p = Preprocessor(data, bins, min_counts_genes, n_hvg)
+    #     p.preprocess()
+    #     tokens = p.get_gene_tokens()
+    #     return p.binned_data, tokens
 
     def get_mask(self, expressions: torch.Tensor) -> torch.Tensor:
         """

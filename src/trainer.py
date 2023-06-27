@@ -7,6 +7,7 @@ import numpy as np
 from DataSet import scDataSet
 import wandb
 from typing import Tuple
+import matplotlib.pyplot as plt
 
 
 class Trainer:
@@ -156,14 +157,31 @@ class Trainer:
             # load and
             config = wandb.config
             print(f'mlm_prob: {config.mlm_probability}')
-            data = scDataSet(path, self.n_bin, self.min_counts_genes, self.n_token, config.mlm_probability)
-            # encode gene names
-            gene_tokens = data.gene_tokens
-            n_token = len(gene_tokens)
-            encode, decode = self.get_gene_encode_decode(gene_tokens)
-            x_src = torch.tensor(encode(gene_tokens))
+            cell_type = config.cell_type
+            ####### preprocess #######
+            # load_data
+            data = scv.datasets.pancreas(path)
+            # split according to cell cluster
+            data.obs.reset_index(inplace=True)
+            idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
+            idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
+            # # check with plot
+            # umap = data.obsm['X_umap']
+            # plt.scatter(umap[idx_test_cells, 0], umap[idx_test_cells, 1], c='red', alpha=0.2)
+            # plt.scatter(umap[idx_train_cells, 0], umap[idx_train_cells, 1], c='blue', alpha=0.1)
+            # plt.show()
+            p = Preprocessor(data, self.n_bin, self.min_counts_genes, self.n_token)
+            p.preprocess()
+            tokens = p.get_gene_tokens()
+            data = p.binned_data
             # split data
-            trainset, testset = random_split(data, [self.split, 1 - self.split])
+            trainset = scDataSet(data[idx_train_cells], config.mlm_probability)
+            testset = scDataSet(data[idx_test_cells], config.mlm_probability)
+            # encode gene names
+            n_token = len(tokens)
+            encode, decode = self.get_gene_encode_decode(tokens)
+            x_src = torch.tensor(encode(tokens))
+            # generate data loaders
             train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=2)
             test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=2)
             n_train = len(trainset)
@@ -258,7 +276,7 @@ class Trainer:
 
 # +-----------------------+ test code +-----------------------+
 # project name needs to be ths same as sweep name
-wandb_project = 'dummy'
+wandb_project = 'dummy_sweep'
 
 # hyperparameters
 batch_size = 10
@@ -321,10 +339,11 @@ config = dict(
     min_counts_genes=min_counts_genes,
     mlm_probability=mlm_probability,
     seed=seed,
-    dataset=dataset_path
+    dataset=dataset_path,
+    cell_type=None
 )
 # start training
-trainer.train(dataset_path, config, wandb_project)
+#trainer.train(dataset_path, config, wandb_project)
 # make the first try of grid search smaller ! First we are most interested in mlm_probability
 sweep_configuration = {
     'program': 'trainer.py',
@@ -335,12 +354,12 @@ sweep_configuration = {
         'name': 'test_loss'
         },
     'parameters': {
-        'mlm_probability' : {'values': [0.9]},
+        'cell_type' : {'values': ['Alpha', 'Ngn3 high EP', 'Pre-endocrine']},
      }
 }
 # generate a sweep id
-# sweep_id = wandb.sweep(sweep=sweep_configuration, project=wandb_project)
-# # create an agant that manages the hyp. param. search
-# # agent expects a funtcion as input, that is why we need the lambda call
-# wandb.agent(sweep_id=sweep_id, function=lambda: trainer.train(dataset_path, config, wandb_project))
+sweep_id = wandb.sweep(sweep=sweep_configuration, project=wandb_project)
+# create an agant that manages the hyp. param. search
+# agent expects a funtcion as input, that is why we need the lambda call
+wandb.agent(sweep_id=sweep_id, function=lambda: trainer.train(dataset_path, config, wandb_project))
 
