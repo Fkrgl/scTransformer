@@ -116,21 +116,6 @@ class Trainer:
         val_data = torch.tensor(p.binned_data[n_train:])
         return train_data, val_data
 
-    # batch loading
-    def get_batch(self, data: Tensor):
-        """
-        generates a batch by random
-        Args:
-            data (Tensor): either train or validation data set
-
-        Returns:
-            x (Tensor): random subset of data
-        """
-        n = data.shape[0]
-        rand_idx = np.random.randint(low=0, high=n, size=self.batch_size)
-        batch_values = data[rand_idx]
-        return batch_values
-
     def get_mask(self, expressions: torch.Tensor, mlm_probability: float = 0.15) -> torch.Tensor:
         """
         generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
@@ -158,7 +143,7 @@ class Trainer:
             # load and
             config = wandb.config
             print(f'mlm_prob: {config.mlm_probability}')
-            data = scDataSet(path, self.n_bin, self.min_counts_genes, self.n_token, config.mlm_probability)
+            data = scDataSet(path, config.n_bin, self.min_counts_genes, self.n_token, config.mlm_probability)
             # encode gene names
             gene_tokens = data.gene_tokens
             n_token = len(gene_tokens)
@@ -168,17 +153,17 @@ class Trainer:
             trainset, testset = random_split(data, [self.split, 1 - self.split])
             # trainset = trainset.to(self.device)
             # testset = testset.to(self.device)
-            train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=4)
-            test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=4)
+            train_loader = DataLoader(trainset, batch_size=config.batch_size, shuffle=True, num_workers=4)
+            test_loader = DataLoader(testset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             n_train = len(trainset)
             # set up model
             model = TransformerModel(d_model=self.n_embd,
                                      dim_feedforward=self.dim_feedforward,
                                      nlayers=self.n_layer,
-                                     n_input_bins=self.n_bin,
+                                     n_input_bins=config.n_bin,
                                      n_token=n_token,
                                      nhead=self.n_head)
-            wandb.watch(model, log='all', log_freq=np.ceil(n_train/self.batch_size))
+            wandb.watch(model, log='all', log_freq=np.ceil(n_train/config.batch_size))
             m = model.to(self.device)
             # print the number of parameters in the model
             print(sum(p.numel() for p in m.parameters()), 'parameters')
@@ -247,7 +232,7 @@ class Trainer:
 
 if __name__ == '__main__':
     # hyperparameters
-    batch_size = 128
+    batch_size = 256
     n_token = 200
     n_epoch = 50
     eval_interval = 100
