@@ -165,6 +165,12 @@ class Trainer:
             data.obs.reset_index(inplace=True)
             idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
             idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
+            # randomly sample from cell idx to get constant train and test set size for each run
+            min_test_set = 481
+            max_test_set = 642
+            n_train_set = len(data) - max_test_set
+            idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
+            idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
             # # check with plot
             # umap = data.obsm['X_umap']
             # plt.scatter(umap[idx_test_cells, 0], umap[idx_test_cells, 1], c='red', alpha=0.2)
@@ -177,6 +183,8 @@ class Trainer:
             # split data
             trainset = scDataSet(data[idx_train_cells], config.mlm_probability)
             testset = scDataSet(data[idx_test_cells], config.mlm_probability)
+            print(f'length trainset: {len(trainset)}')
+            print(f'length testset: {len(testset)}')
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -281,7 +289,7 @@ wandb_project = 'dummy_sweep'
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 5
+n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10

@@ -158,18 +158,41 @@ class Trainer:
             # load and
             config = wandb.config
             print(f'mlm_prob: {config.mlm_probability}')
-            data = scDataSet(path, self.n_bin, self.min_counts_genes, self.n_token, config.mlm_probability)
-            # encode gene names
-            gene_tokens = data.gene_tokens
-            n_token = len(gene_tokens)
-            encode, decode = self.get_gene_encode_decode(gene_tokens)
-            x_src = torch.tensor(encode(gene_tokens))
+            print(f'mlm_prob: {config.mlm_probability}')
+            cell_type = config.cell_type
+            ####### preprocess #######
+            # load_data
+            data = scv.datasets.pancreas(path)
+            # split according to cell cluster
+            data.obs.reset_index(inplace=True)
+            idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
+            idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
+            # randomly sample from cell idx to get constant train and test set size for each run
+            min_test_set = 481
+            max_test_set = 642
+            n_train_set = len(data) - max_test_set
+            idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
+            idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
+            # # check with plot
+            # umap = data.obsm['X_umap']
+            # plt.scatter(umap[idx_test_cells, 0], umap[idx_test_cells, 1], c='red', alpha=0.2)
+            # plt.scatter(umap[idx_train_cells, 0], umap[idx_train_cells, 1], c='blue', alpha=0.1)
+            # plt.show()
+            p = Preprocessor(data, self.n_bin, self.min_counts_genes, self.n_token)
+            p.permute()
+            p.preprocess()
+            tokens = p.get_gene_tokens()
+            data = p.binned_data
             # split data
-            trainset, testset = random_split(data, [self.split, 1 - self.split])
-            # trainset = trainset.to(self.device)
-            # testset = testset.to(self.device)
-            train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=4)
-            test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=4)
+            trainset = scDataSet(data[idx_train_cells], config.mlm_probability)
+            testset = scDataSet(data[idx_test_cells], config.mlm_probability)
+            # encode gene names
+            n_token = len(tokens)
+            encode, decode = self.get_gene_encode_decode(tokens)
+            x_src = torch.tensor(encode(tokens))
+            # generate data loaders
+            train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=2)
+            test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=2)
             n_train = len(trainset)
             # set up model
             model = TransformerModel(d_model=self.n_embd,
@@ -247,7 +270,7 @@ class Trainer:
 
 if __name__ == '__main__':
     # hyperparameters
-    batch_size = 128
+    batch_size = 264
     n_token = 200
     n_epoch = 50
     eval_interval = 100
