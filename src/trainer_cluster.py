@@ -193,6 +193,8 @@ class Trainer:
                     # torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
                     # torch.save(val_input, '../data/val_input_50_epochs.pt')
                     # torch.save(masks, '../data/masks_50_epochs.pt')
+            # save model
+            #torch.save(model.state_dict(), f'../data/model_bin{config.n_bin}_prob{config.mlm_probability}.pt')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) \
             -> Tuple[float, float]:
@@ -234,7 +236,7 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 256
     n_token = 200
-    n_epoch = 50
+    n_epoch = 100
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
