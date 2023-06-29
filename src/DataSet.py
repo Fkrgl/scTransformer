@@ -15,7 +15,7 @@ class scDataSet(Dataset):
         # load data
         self.data = scv.datasets.pancreas(path)
         # preprocess data
-        self.data, self.gene_tokens = self.preprocess_data(self.data, bins, min_counts_genes, n_hvg)
+        self.data, self.gene_tokens, self.cell_bins = self.preprocess_data(self.data, bins, min_counts_genes, n_hvg)
 
     def __len__(self):
         return len(self.data)
@@ -25,7 +25,8 @@ class scDataSet(Dataset):
         sample = torch.tensor(self.data[idx])
         # generate mask for sample
         mask = self.get_mask(sample)
-        return sample, mask
+        cell_bin = torch.tensor(self.cell_bins[idx])
+        return sample, mask, cell_bin
 
     def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
         """
@@ -34,7 +35,7 @@ class scDataSet(Dataset):
         p = Preprocessor(data, bins, min_counts_genes, n_hvg)
         p.preprocess()
         tokens = p.get_gene_tokens()
-        return p.binned_data, tokens
+        return p.binned_data, tokens, p.cell_bins
 
     def get_mask(self, expressions: torch.Tensor) -> torch.Tensor:
         """

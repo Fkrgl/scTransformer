@@ -39,6 +39,7 @@ class Preprocessor:
         self.n_hvg = n_hvg
         self.n_bins = n_bins
         self.binned_data = None
+        self.cell_bins = None
 
     def preprocess(self):
         # filter by counts of genes
@@ -67,12 +68,14 @@ class Preprocessor:
         data = self.data.X.toarray()
         binned_rows = []
         bin_edges = []
+        bin_per_cell = []
         # perform value binning for each cell
         for row in data:
             non_zero_ids = row.nonzero()
             non_zero_row = row[non_zero_ids]
             # get borders of equally distributed bins
             bins = np.quantile(non_zero_row, np.linspace(0, 1, self.n_bins - 1))
+            bin_per_cell.append(bins)
             # spread all values equally across the bins
             non_zero_digits = self._digitize(non_zero_row, bins)
             binned_row = np.zeros_like(row, dtype=np.int64)
@@ -82,6 +85,8 @@ class Preprocessor:
             bin_edges.append(np.concatenate([[0], bins]))
         # construct matrix from binned rows
         self.binned_data = np.stack(binned_rows)
+        self.cell_bins = np.stack(bin_per_cell)
+
 
     def _digitize(self, x: np.ndarray, bins: np.ndarray) -> np.ndarray:
         """

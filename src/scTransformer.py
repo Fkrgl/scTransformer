@@ -66,7 +66,7 @@ class TransformerModel(nn.Module):
     def _encode(self,
                 src: Tensor,
                 values: Tensor,
-                key_padding_mask: Tensor,
+                key_padding_mask: Optional[Tensor] = None,
                 ) -> Tensor:
         """
 
@@ -148,6 +148,26 @@ class TransformerModel(nn.Module):
         # print(f'{masked_label_exp}\n{masked_label_exp.shape}')
         # print(f'{masked_pred_exp}\n{masked_pred_exp.shape}')
         return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
+
+    def generate(self,
+                src: Tensor,
+                values: Tensor,
+                bins):
+        n_gen = self.n_token
+        # embedd genes of target cell and feed in transformer encoder
+        encoder_output = self._encode(src, values)
+        # decode transformer encoded gene vectors
+        decoder_output = self.decoder(encoder_output)
+        # get softmax
+        s = nn.Softmax(dim=0)
+        softmax_output = nn.Softmax(decoder_output)
+        # sample from softmax
+        sample_profile = np.zeros(shape=n_gen)
+        for i in range(n_gen):
+            prob = softmax_output[:,i]
+            bin = np.random.choice(bins, size=1, p=prob)
+            sample_profile[i] = bin
+        return sample_profile
 
 class GeneEncoder(nn.Module):
     """

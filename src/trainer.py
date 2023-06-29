@@ -185,7 +185,7 @@ class Trainer:
             print(f'epoch: {0}/{self.n_epoch}, test error = {test_loss:.4f}'
                   f', accuracy = {test_accuracy:.4f}')
             for epoch in range(self.n_epoch):
-                for i, (x_val, mask) in enumerate(train_loader):
+                for i, (x_val, mask, _) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
                     loss = model(x_src, x_val, mask)
@@ -208,6 +208,11 @@ class Trainer:
                     # torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
                     # torch.save(val_input, '../data/val_input_50_epochs.pt')
                     # torch.save(masks, '../data/masks_50_epochs.pt')
+            # generate
+            x_val, _, bin= next(iter(train_loader))
+            print(f'x_val: \n{x_val}')
+            sample = model.generate(x_src, x_val, bin)
+            print(sample)
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
         """
@@ -215,7 +220,7 @@ class Trainer:
         """
         model.eval()
         losses = []
-        for i, (x_val, mask) in enumerate(test_loader):
+        for i, (x_val, mask, _) in enumerate(test_loader):
             # evaluate the loss
             losses.append(model(x_src, x_val, mask).item())
         model.train()
@@ -229,7 +234,7 @@ class Trainer:
         model.eval()
         acc = []
         loss = []
-        for i, (x_val, mask) in enumerate(test_loader):
+        for i, (x_val, mask, _) in enumerate(test_loader):
             # evaluate the loss
             l, a = model(x_src, x_val, mask, get_accuracy=True)
             loss.append(l.item())
@@ -248,7 +253,7 @@ class Trainer:
         model.eval()
         reconstructed_profiles = []
         masks = []
-        for i, (x_val, mask) in enumerate(test_loader):
+        for i, (x_val, mask, _) in enumerate(test_loader):
             # evaluate the loss
             reconstructed_profiles.append(model(x_src, x_val, mask, True))
             masks.append(mask)

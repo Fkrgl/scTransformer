@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import torch.nn as nn
 
 
 
@@ -67,21 +68,26 @@ print(torch.zeros(3))
 # print(target)
 # print(torch.transpose(input, 0, 1))
 
-print()
-label = torch.load('../data/val_input_50_epochs.pt')
-pred = torch.load('../data/reconstructed_profiles_50_epochs.pt')
-mask = torch.load('../data/masks_50_epochs.pt')
-print(mask[1])
-l = label[1]
-p = pred[1]
-m = mask[1]
-print(l[m])
-print(l[m].shape)
-print(p[m])
-print(p[m].shape)
-print(p[m][0])
-print(l[m][0])
+# print()
+# label = torch.load('../data/val_input_50_epochs.pt')
+# pred = torch.load('../data/reconstructed_profiles_50_epochs.pt')
+# mask = torch.load('../data/masks_50_epochs.pt')
+# print(mask[1])
+# l = label[1]
+# p = pred[1]
+# m = mask[1]
+# print(l[m])
+# print(l[m].shape)
+# print(p[m])
+# print(p[m].shape)
+# print(p[m][0])
+# print(l[m][0])
 # print(torch.sum(p[m], dim=1))
 # print(torch.sum(p[m], dim=1).shape)
 # print(pred[0,1,:])
 # print(torch.sum(pred[0,1,:]))
+
+input = torch.randn(2,3)
+soft = nn.Softmax(dim=0)
+print(input)
+print(soft(input))
