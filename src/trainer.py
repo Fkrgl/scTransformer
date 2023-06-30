@@ -181,9 +181,9 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
-            test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
-            print(f'epoch: {0}/{self.n_epoch}, test error = {test_loss:.4f}'
-                  f', accuracy = {test_accuracy:.4f}')
+            # test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
+            # print(f'epoch: {0}/{self.n_epoch}, test error = {test_loss:.4f}'
+            #       f', accuracy = {test_accuracy:.4f}')
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask, _) in enumerate(train_loader):
                     # evaluate the loss
@@ -209,9 +209,11 @@ class Trainer:
                     # torch.save(val_input, '../data/val_input_50_epochs.pt')
                     # torch.save(masks, '../data/masks_50_epochs.pt')
             # generate
-            x_val, _, bin= next(iter(train_loader))
+            x_val, _, bin = next(iter(train_loader))
+            print(f'shape bin: {bin.shape}')
+            print(bin[0])
             print(f'x_val: \n{x_val}')
-            sample = model.generate(x_src, x_val, bin)
+            sample = model.generate(x_src[0], x_val[0], bin[0])
             print(sample)
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
