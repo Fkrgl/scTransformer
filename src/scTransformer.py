@@ -33,6 +33,7 @@ class TransformerModel(nn.Module):
         super().__init__()
         # parameters
         self.d_model = d_model
+        self.n_token = n_token
         self.activation = "relu"
         self.n_input_bins = n_input_bins
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
