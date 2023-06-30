@@ -7,6 +7,7 @@ import numpy as np
 from DataSet import scDataSet
 import wandb
 from typing import Tuple
+import matplotlib.pyplot as plt
 
 class Trainer:
     def __init__(self,
@@ -163,21 +164,56 @@ class Trainer:
             ####### preprocess #######
             # load_data
             data = scv.datasets.pancreas(path)
-            # split according to cell cluster
-            data.obs.reset_index(inplace=True)
-            idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
-            idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
-            # randomly sample from cell idx to get constant train and test set size for each run
             min_test_set = 481
             max_test_set = 642
             n_train_set = len(data) - max_test_set
-            idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
-            idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
-            # # check with plot
-            # umap = data.obsm['X_umap']
-            # plt.scatter(umap[idx_test_cells, 0], umap[idx_test_cells, 1], c='red', alpha=0.2)
-            # plt.scatter(umap[idx_train_cells, 0], umap[idx_train_cells, 1], c='blue', alpha=0.1)
-            # plt.show()
+            data.obs.reset_index(inplace=True)
+            # split for not omit any cell type
+            if cell_type == 'None':
+                idx_all = np.arange(len(data))
+                idx_test_cells = np.random.choice(idx_all, size=min_test_set, replace=False)
+                idx_rest = list(set(idx_all) - set(idx_test_cells))
+                idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train_set, replace=False)
+            elif cell_type == 'endstates':
+                endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
+                idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
+                idx_not_endstates = data.obs[~data.obs.clusters.isin(endstates)].index.values
+                idx_test_cells = idx_enstates
+                idx_train_cells = idx_not_endstates
+            elif cell_type == 'earlystates':
+                earlystates = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP']
+                idx_earlystates = data.obs[data.obs.clusters.isin(earlystates)].index.values
+                idx_not_earlystates = data.obs[~data.obs.clusters.isin(earlystates)].index.values
+                idx_test_cells = idx_earlystates
+                idx_train_cells = idx_not_earlystates
+            elif cell_type == 'multiple':
+                multiple = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP', 'Alpha', 'Beta', 'Delta']
+                idx_multiple = data.obs[data.obs.clusters.isin(multiple)].index.values
+                idx_not_multiple = data.obs[~data.obs.clusters.isin(multiple)].index.values
+                idx_test_cells = idx_multiple
+                idx_train_cells = idx_not_multiple
+
+            # split for omit cell type
+            else:
+                idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
+                idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
+                idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
+                idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
+
+            # check with plot
+            umap = data.obsm['X_umap']
+            plt.scatter(umap[idx_test_cells, 0], umap[idx_test_cells, 1], c='red', alpha=0.2, label='cut')
+            plt.scatter(umap[idx_train_cells, 0], umap[idx_train_cells, 1], c='blue', alpha=0.1, label='uncut')
+            plt.title(f'{cell_type}')
+            plt.legend()
+            file_path = f'../fig/cut_out_{cell_type}.png'
+            plt.savefig(file_path)
+            # check split
+            print(f'trainset clusters:\n{data[idx_train_cells].obs.clusters}')
+            print()
+            print(f'testset clusters:\n{data[idx_test_cells].obs.clusters}')
+            print()
+            # preprocess
             p = Preprocessor(data, self.n_bin, self.min_counts_genes, self.n_token)
             p.permute()
             p.preprocess()
