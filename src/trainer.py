@@ -230,7 +230,7 @@ class Trainer:
                     val_input = testset[:][0]
                     print(reconstructed_profiles.shape)
                     print(val_input.shape)
-                    torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
+                    torch.save(reconstructed_profiles, '../data/reconstructed_profiles_.pt')
                     torch.save(val_input, '../data/val_input_50_epochs.pt')
                     torch.save(masks, '../data/masks_50_epochs.pt')
 

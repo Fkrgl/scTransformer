@@ -214,7 +214,7 @@ class Trainer:
             print(f'testset clusters:\n{data[idx_test_cells].obs.clusters}')
             print()
             # preprocess
-            p = Preprocessor(data, self.n_bin, self.min_counts_genes, self.n_token)
+            p = Preprocessor(data, config.n_bin, self.min_counts_genes, self.n_token)
             p.permute()
             p.preprocess()
             tokens = p.get_gene_tokens()
@@ -234,7 +234,7 @@ class Trainer:
             model = TransformerModel(d_model=self.n_embd,
                                      dim_feedforward=self.dim_feedforward,
                                      nlayers=self.n_layer,
-                                     n_input_bins=self.n_bin,
+                                     n_input_bins=config.n_bin,
                                      n_token=n_token,
                                      nhead=self.n_head)
             wandb.watch(model, log='all', log_freq=np.ceil(n_train/self.batch_size))
@@ -264,9 +264,9 @@ class Trainer:
                     val_input = testset[:][0]
                     print(reconstructed_profiles.shape)
                     print(val_input.shape)
-                    # torch.save(reconstructed_profiles, '../data/reconstructed_profiles_50_epochs.pt')
-                    # torch.save(val_input, '../data/val_input_50_epochs.pt')
-                    # torch.save(masks, '../data/masks_50_epochs.pt')
+                    torch.save(reconstructed_profiles, '../data/reconstructed_profiles_multipleLeaveOut_100_epochs.pt')
+                    torch.save(val_input, '../data/val_input_multipleLeaveOut_100_epochs.pt')
+                    torch.save(masks, '../data/masks_multipleLeaveOut_100_epochs.pt')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) \
             -> Tuple[float, float]:

@@ -1,6 +1,7 @@
 import torch
+import torch.nn as nn
 import numpy as np
-
+import matplotlib.pyplot as plt
 
 
 true = torch.Tensor([5,3,0])
@@ -68,27 +69,36 @@ print(torch.zeros(3))
 # print(torch.transpose(input, 0, 1))
 
 # look at network output
-# print()
-# label = torch.load('../data/val_input_50_epochs.pt')
-# pred = torch.load('../data/reconstructed_profiles_50_epochs.pt')
-# mask = torch.load('../data/masks_50_epochs.pt')
-# print(mask[1])
-# l = label[1]
-# p = pred[1]
-# m = mask[1]
-# print(l[m])
-# print(l[m].shape)
-# print(p[m])
-# print(p[m].shape)
-# print(p[m][0])
-# print(l[m][0])
+print()
+label = torch.load('../data/val_input_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
+pred = torch.load('../data/reconstructed_profiles_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
+mask = torch.load('../data/masks_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
+print(mask[1])
+print(f'shape of mask: {mask[1].shape}')
+l = label[1]
+print(f'shape of label: {label.shape}')
+p = pred[1]
+print(f'shape of pred: {pred.shape}')
+m = mask[1]
+print(p[:,1])
+print(l[m])
+print(p[m,4])
+print(p[m,4].shape)
+
+s = nn.Softmax(dim=0)
+# for i in range(pred.shape[0]):
+#     print(s(pred[i, 0 ,:]))
+#for i in range(4):
+plt.hist(pred[:, :, 2].detach().numpy(), alpha=0.5)
+plt.legend()
+plt.show()
 
 # print(torch.sum(p[m], dim=1))
 # print(torch.sum(p[m], dim=1).shape)
 # print(pred[0,1,:])
 # print(torch.sum(pred[0,1,:]))
 
-a = np.array([1,2,3,4])
-print(np.random.choice(a, size=4, replace=False))
-b = np.array([3,0])
-print(a[b])
+# a = np.array([1,2,3,4])
+# print(np.random.choice(a, size=4, replace=False))
+# b = np.array([3,0])
+# print(a[b])
