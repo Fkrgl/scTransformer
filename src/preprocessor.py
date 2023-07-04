@@ -74,6 +74,7 @@ class Preprocessor:
             non_zero_ids = row.nonzero()
             non_zero_row = row[non_zero_ids]
             # get borders of equally distributed bins
+            print(non_zero_row)
             bins = np.quantile(non_zero_row, np.linspace(0, 1, self.n_bins - 1))
             bin_per_cell.append(bins)
             # spread all values equally across the bins
