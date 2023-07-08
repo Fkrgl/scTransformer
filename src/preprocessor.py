@@ -125,7 +125,7 @@ class Preprocessor:
 
     def get_mean_number_of_nonZero_bins(self):
         non_zeros = np.count_nonzero(self.binned_data, axis=1)
-        mean_non_zeros = np.round(np.mean(non_zeros),decimals=0)
+        mean_non_zeros = int(np.round(np.mean(non_zeros),decimals=0))
         self.mean_non_zero_bins = mean_non_zeros
 
 if __name__ == '__main__':

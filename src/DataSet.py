@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import scvelo as scv
@@ -6,9 +7,11 @@ from preprocessor import Preprocessor
 class scDataSet(Dataset):
     def __init__(self,
                  data,
-                 mlm_probability: float
+                 n_non_zero_bins: float,
+                 n_tokens: int
                  ):
-        self.mlm_probability = mlm_probability
+        self.n_non_zero_bins = n_non_zero_bins
+        self.n_tokens = n_tokens
         # load data
         self.data = data
 
@@ -19,7 +22,7 @@ class scDataSet(Dataset):
         # get sample
         sample = torch.tensor(self.data[idx])
         # generate mask for sample
-        mask = self.get_mask(sample)
+        mask = self.get_mask_2(sample)
         return sample, mask
 
     # def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
@@ -49,13 +52,48 @@ class scDataSet(Dataset):
         mask = torch.bernoulli(probability_matrix).bool()
         return mask
 
-    def generate_masks(self):
+    def get_mask_2(self, sample):
+        mask = np.zeros(self.n_tokens, dtype=bool)
+        n_non_zeros = np.count_nonzero(sample)
+        n_zeros = self.n_non_zero_bins
+        # less non zero bins than average
+        if n_non_zeros < self.n_non_zero_bins:
+            diff = self.n_non_zero_bins - n_non_zeros
+            n_zeros = n_non_zeros + diff
+        # more non-zero bins than average
+        elif n_non_zeros > self.n_non_zero_bins:
+            diff = n_non_zeros - self.n_non_zero_bins
+            n_zeros = self.n_non_zero_bins - diff
+        # sample indeces
+        print(f'n_zeros={n_zeros}')
+        print(f'n_non_zeros={n_non_zeros}')
+        print()
+        idx = np.arange(self.n_tokens)
+        idx_zero = idx[sample == 0]
+        idx_non_zero = idx[sample != 0]
+        # randomly select genes to be masked
+        idx_masked_zero = np.random.choice(idx_zero, n_zeros, replace=False)
+        idx_masked_non_zero = np.random.choice(idx_non_zero, n_non_zeros, replace=False)
+        # mask
+        mask[idx_masked_zero] = True
+        mask[idx_masked_non_zero] = True
+        return mask
 
 
 
-# dataset = scDataSet('../data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200, 0.1)
-# print(dataset.__len__())
-# print(dataset.__getitem__(1))
+path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
+data = scv.datasets.pancreas(path)
+p = Preprocessor(data, 100, 10, 200)
+p.preprocess()
+tokens = p.get_gene_tokens()
+data = p.binned_data
+p.get_mean_number_of_nonZero_bins()
+dataset = scDataSet(data, p.mean_non_zero_bins, 200)
+for i in range(50):
+    sample, mask = dataset.__getitem__(i)
+    # print(mask)
+    # print(mask.sum())
+print(p.mean_non_zero_bins)
 # trainset, testset = random_split(dataset, [0.9, 0.1])
 # train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
 # test_loader = DataLoader(testset, batch_size=10, shuffle=True)
