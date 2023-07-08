@@ -49,6 +49,9 @@ class scDataSet(Dataset):
         mask = torch.bernoulli(probability_matrix).bool()
         return mask
 
+    def generate_masks(self):
+
+
 
 # dataset = scDataSet('../data/Pancreas/endocrinogenesis_day15.h5ad', 10, 10, 200, 0.1)
 # print(dataset.__len__())

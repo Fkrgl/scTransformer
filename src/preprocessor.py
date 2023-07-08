@@ -14,7 +14,7 @@ class Preprocessor:
                 anndata: AnnData,
                 n_bins: int,
                 min_counts_genes: int = 10,
-                n_hvg: int = 2400,
+                n_hvg: int = 200,
                 ):
         """
 
@@ -39,6 +39,7 @@ class Preprocessor:
         self.n_hvg = n_hvg
         self.n_bins = n_bins
         self.binned_data = None
+        self.mean_non_zero_bins = None
 
     def preprocess(self):
         # filter by counts of genes
@@ -122,6 +123,11 @@ class Preprocessor:
     def get_gene_tokens(self):
         return self.data.var.index.values
 
+    def get_mean_number_of_nonZero_bins(self):
+        non_zeros = np.count_nonzero(self.binned_data, axis=1)
+        mean_non_zeros = np.round(np.mean(non_zeros),decimals=0)
+        self.mean_non_zero_bins = mean_non_zeros
+
 if __name__ == '__main__':
     # load dataset
     anndata = scv.datasets.pancreas()
@@ -130,3 +136,8 @@ if __name__ == '__main__':
     print(p.binned_data)
     print(f'output shape: {p.binned_data.shape}')
     print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
+    print(f'number of non zeros: {np.count_nonzero(p.binned_data[0])}')
+    non_zeros = np.count_nonzero(p.binned_data, axis=1)
+    print(f'number of non zeros: {non_zeros}')
+    print(f'{non_zeros.shape}')
+    print(f'mean of non zeros: {np.round(np.mean(non_zeros),decimals=0)}')

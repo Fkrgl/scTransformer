@@ -351,23 +351,23 @@ config = dict(
     cell_type=None
 )
 # start training
-#trainer.train(dataset_path, config, wandb_project)
+trainer.train(dataset_path, config, wandb_project)
 # make the first try of grid search smaller ! First we are most interested in mlm_probability
-sweep_configuration = {
-    'program': 'trainer.py',
-    'method': 'grid',
-    'name': wandb_project,
-    'metric': {
-        'goal': 'minimize',
-        'name': 'test_loss'
-        },
-    'parameters': {
-        'cell_type' : {'values': ['Alpha', 'Ngn3 high EP', 'Pre-endocrine']},
-     }
-}
-# generate a sweep id
-sweep_id = wandb.sweep(sweep=sweep_configuration, project=wandb_project)
-# create an agant that manages the hyp. param. search
-# agent expects a funtcion as input, that is why we need the lambda call
-wandb.agent(sweep_id=sweep_id, function=lambda: trainer.train(dataset_path, config, wandb_project))
+# sweep_configuration = {
+#     'program': 'trainer.py',
+#     'method': 'grid',
+#     'name': wandb_project,
+#     'metric': {
+#         'goal': 'minimize',
+#         'name': 'test_loss'
+#         },
+#     'parameters': {
+#         'cell_type' : {'values': ['Alpha', 'Ngn3 high EP', 'Pre-endocrine']},
+#      }
+# }
+# # generate a sweep id
+# sweep_id = wandb.sweep(sweep=sweep_configuration, project=wandb_project)
+# # create an agant that manages the hyp. param. search
+# # agent expects a funtcion as input, that is why we need the lambda call
+# wandb.agent(sweep_id=sweep_id, function=lambda: trainer.train(dataset_path, config, wandb_project))
 
