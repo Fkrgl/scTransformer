@@ -62,7 +62,7 @@ def train(train_data, tokens, mlm_probability, batch_size, n_embd, dim_feedforwa
         print(f'epoch: {epoch+1}/{n_epoch}, loss={loss}')
     #print(f'losses: {losses}\nfinal train loss = {losses[-1]}')
     # save model
-    torch.save(model.state_dict(), model_path)
+    #torch.save(model.state_dict(), model_path)
 
 if __name__ == '__main__':
     torch.manual_seed(1234)
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     n_head = 2
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     learning_rate = 3e-4
-    n_epoch = 100
+    n_epoch = 200
 
     train_data = load_train_data(path)
     tokens = load_tokens(path_tokens)

@@ -22,7 +22,7 @@ class scDataSet(Dataset):
         # get sample
         sample = torch.tensor(self.data[idx])
         # generate mask for sample
-        mask = self.get_mask_2(sample)
+        mask = self.get_balanced_mask(sample)
         return sample, mask
 
     # def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
@@ -34,40 +34,47 @@ class scDataSet(Dataset):
     #     tokens = p.get_gene_tokens()
     #     return p.binned_data, tokens
 
-    def get_mask(self, expressions: torch.Tensor) -> torch.Tensor:
-        """
-        generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
-        process. More information here:
-        https://github.com/pytorch/pytorch/blob/11f1014c05b902d3eef0fe01a7c432f818c2bdfe/torch/nn/functional.py#L3892
-        Args:
-            expressions: expression matrix (batch, seq_length)
-            mlm_probability: probability fo a gene to get masked
+    # def get_prob_mask(self, expressions: torch.Tensor) -> torch.Tensor:
+    #     """
+    #     generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
+    #     process. More information here:
+    #     https://github.com/pytorch/pytorch/blob/11f1014c05b902d3eef0fe01a7c432f818c2bdfe/torch/nn/functional.py#L3892
+    #     Args:
+    #         expressions: expression matrix (batch, seq_length)
+    #         mlm_probability: probability fo a gene to get masked
+    #
+    #     Returns:
+    #         Boolean Tensor of shape (batch, n_token) with True where genes should be masked
+    #
+    #     """
+    #     shape = expressions.shape
+    #     probability_matrix = torch.full(shape, self.mlm_probability)
+    #     mask = torch.bernoulli(probability_matrix).bool()
+    #     return mask
 
-        Returns:
-            Boolean Tensor of shape (batch, n_token) with True where genes should be masked
-
-        """
-        shape = expressions.shape
-        probability_matrix = torch.full(shape, self.mlm_probability)
-        mask = torch.bernoulli(probability_matrix).bool()
-        return mask
-
-    def get_mask_2(self, sample):
+    def get_balanced_mask(self, sample):
         mask = np.zeros(self.n_tokens, dtype=bool)
         n_non_zeros = np.count_nonzero(sample)
+        # trim n_non_zeros if its exceeds the maximal number of masked genes (=2*self.n_non_zero_bins)
+        if n_non_zeros > 2*self.n_non_zero_bins:
+            # in this case all masked genes have a non zero bin value
+            n_non_zeros = 2*self.n_non_zero_bins
+        #print(f'number of non zero bins: {n_non_zeros}')
         n_zeros = self.n_non_zero_bins
         # less non zero bins than average
         if n_non_zeros < self.n_non_zero_bins:
             diff = self.n_non_zero_bins - n_non_zeros
-            n_zeros = n_non_zeros + diff
+            # print(f'less non zero genes. diff={diff}')
+            # print(f'n_zeros = {self.n_non_zero_bins} + {diff}')
+            n_zeros = self.n_non_zero_bins + diff
         # more non-zero bins than average
         elif n_non_zeros > self.n_non_zero_bins:
             diff = n_non_zeros - self.n_non_zero_bins
+            # print(f'more non zero genes. diff={diff}')
+            # print(f'n_zeros = {self.n_non_zero_bins} - {diff}')
             n_zeros = self.n_non_zero_bins - diff
         # sample indeces
-        print(f'n_zeros={n_zeros}')
-        print(f'n_non_zeros={n_non_zeros}')
-        print()
+        # print(f'n_zeros={n_zeros}')
         idx = np.arange(self.n_tokens)
         idx_zero = idx[sample == 0]
         idx_non_zero = idx[sample != 0]
@@ -89,11 +96,9 @@ tokens = p.get_gene_tokens()
 data = p.binned_data
 p.get_mean_number_of_nonZero_bins()
 dataset = scDataSet(data, p.mean_non_zero_bins, 200)
-for i in range(50):
+for i in range(len(data)):
     sample, mask = dataset.__getitem__(i)
-    # print(mask)
-    # print(mask.sum())
-print(p.mean_non_zero_bins)
+    print(f'size mask={mask.sum()}')
 # trainset, testset = random_split(dataset, [0.9, 0.1])
 # train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
 # test_loader = DataLoader(testset, batch_size=10, shuffle=True)
