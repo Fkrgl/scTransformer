@@ -2,6 +2,7 @@ import scvelo as scv
 import scanpy as sc
 import numpy as np
 from anndata import AnnData
+import torch
 
 
 class Preprocessor:
@@ -68,12 +69,24 @@ class Preprocessor:
         data = self.data.X.toarray()
         binned_rows = []
         bin_edges = []
-        # perform value binning for each cell
+        print(f'data:\n{data}')
+        print(f'{data.shape}')
+        # perform value binning for whole data set
+        idx_non_zero_i, idx_non_zero_j = data.nonzero()
+        print(idx_non_zero_i)
+        print(idx_non_zero_j)
+        values_non_zero = data[idx_non_zero_i, idx_non_zero_j]
+        # get borders of equally distributed bins
+        bins = np.quantile(values_non_zero, np.linspace(0, 1, self.n_bins - 1))
+        print(f'bins:\n{bins}')
+        print(f'len_bins = {len(bins)}')
+        print(f'min_value = {np.min(values_non_zero)}')
+        print(f'max_value = {np.max(values_non_zero)}')
+        # the 0 bin is from 0 to bin_1
+
         for row in data:
             non_zero_ids = row.nonzero()
             non_zero_row = row[non_zero_ids]
-            # get borders of equally distributed bins
-            bins = np.quantile(non_zero_row, np.linspace(0, 1, self.n_bins - 1))
             # spread all values equally across the bins
             non_zero_digits = self._digitize(non_zero_row, bins)
             binned_row = np.zeros_like(row, dtype=np.int64)
@@ -82,7 +95,11 @@ class Preprocessor:
             binned_rows.append(binned_row)
             bin_edges.append(np.concatenate([[0], bins]))
         # construct matrix from binned rows
+        print(f'non zero row: {row}')
         self.binned_data = np.stack(binned_rows)
+        print(f'unique values: {np.unique(self.binned_data)}')
+        self.create_bin_mapping(bins)
+
 
     def _digitize(self, x: np.ndarray, bins: np.ndarray) -> np.ndarray:
         """
@@ -112,6 +129,14 @@ class Preprocessor:
         digits = np.ceil(digits).astype(np.int64)
         return digits
 
+    def create_bin_mapping(self, bins):
+        bins_to_value = {}
+        for i in range(len(bins)-1):
+            bins_to_value[i] = (bins[i] + bins[i+1]) / 2
+        bins_to_value[0] = 0
+        print(bins_to_value)
+
+
     def permute(self):
         """
         randomly shuffles the dataset
@@ -131,7 +156,7 @@ class Preprocessor:
 if __name__ == '__main__':
     # load dataset
     anndata = scv.datasets.pancreas()
-    p = Preprocessor(anndata, 10)
+    p = Preprocessor(anndata, 100)
     p.preprocess()
     print(p.binned_data)
     print(f'output shape: {p.binned_data.shape}')
@@ -141,3 +166,4 @@ if __name__ == '__main__':
     print(f'number of non zeros: {non_zeros}')
     print(f'{non_zeros.shape}')
     print(f'mean of non zeros: {np.round(np.mean(non_zeros),decimals=0)}')
+    torch.save(p.binned_data, f'../data/test_values_wholeDataset.pt')
