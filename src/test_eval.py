@@ -47,7 +47,7 @@ def evaluate_model(model: TransformerModel, device, mlm_probability, batch_size,
     """
     encode, decode = get_gene_encode_decode(tokens)
     x_src = torch.tensor(encode(tokens))
-    testset = scDataSet(test_data, mlm_probability)
+    testset = scDataSet(test_data, 22, n_token)
     test_loader = DataLoader(testset, batch_size=batch_size, shuffle=True, num_workers=2)
     model.eval()
     acc = []

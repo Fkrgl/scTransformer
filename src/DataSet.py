@@ -7,7 +7,7 @@ from preprocessor import Preprocessor
 class scDataSet(Dataset):
     def __init__(self,
                  data,
-                 n_non_zero_bins: float,
+                 n_non_zero_bins: int,
                  n_tokens: int
                  ):
         self.n_non_zero_bins = n_non_zero_bins
@@ -88,17 +88,17 @@ class scDataSet(Dataset):
 
 
 
-path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
-data = scv.datasets.pancreas(path)
-p = Preprocessor(data, 100, 10, 200)
-p.preprocess()
-tokens = p.get_gene_tokens()
-data = p.binned_data
-p.get_mean_number_of_nonZero_bins()
-dataset = scDataSet(data, p.mean_non_zero_bins, 200)
-for i in range(len(data)):
-    sample, mask = dataset.__getitem__(i)
-    print(f'size mask={mask.sum()}')
+# path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
+# data = scv.datasets.pancreas(path)
+# p = Preprocessor(data, 100, 10, 200)
+# p.preprocess()
+# tokens = p.get_gene_tokens()
+# data = p.binned_data
+# p.get_mean_number_of_nonZero_bins()
+# dataset = scDataSet(data, p.mean_non_zero_bins, 200)
+# for i in range(len(data)):
+#     sample, mask = dataset.__getitem__(i)
+#     print(f'size mask={mask.sum()}')
 # trainset, testset = random_split(dataset, [0.9, 0.1])
 # train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
 # test_loader = DataLoader(testset, batch_size=10, shuffle=True)

@@ -38,7 +38,7 @@ def train(train_data, tokens, mlm_probability, batch_size, n_embd, dim_feedforwa
     encode, decode = get_gene_encode_decode(tokens)
     x_src = torch.tensor(encode(tokens))
     # generate data loader
-    trainset = scDataSet(train_data, mlm_probability)
+    trainset = scDataSet(train_data, 22, n_token)
     train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=2)
     n_train = len(trainset)
     # set up model
@@ -59,10 +59,9 @@ def train(train_data, tokens, mlm_probability, batch_size, n_embd, dim_feedforwa
             optimizer.zero_grad(set_to_none=True)
             loss.backward()
             optimizer.step()
-        print(f'epoch: {epoch+1}/{n_epoch}, loss={loss}')
-    #print(f'losses: {losses}\nfinal train loss = {losses[-1]}')
+    print(f'epoch: {epoch+1}/{n_epoch}, loss={loss}')
     # save model
-    #torch.save(model.state_dict(), model_path)
+    torch.save(model.state_dict(), model_path)
 
 if __name__ == '__main__':
     torch.manual_seed(1234)
