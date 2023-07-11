@@ -149,6 +149,28 @@ class TransformerModel(nn.Module):
         # print(f'{masked_pred_exp}\n{masked_pred_exp.shape}')
         return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
+    def generate(self,
+                 src: Tensor,
+                 values: Tensor,
+                 bins):
+        n_gen = self.n_token
+        # embedd genes of target cell and feed in transformer encoder
+        encoder_output = self._encode(src, values)
+        # decode transformer encoded gene vectors
+        decoder_output = self.decoder(encoder_output)
+        print(f'decoder_output_shape: {decoder_output.shape}')
+        # get softmax
+        s = nn.Softmax(dim=0)
+        softmax_output = s(decoder_output)
+        print(f'softmax:\n{softmax_output}')
+        # sample from softmax
+        sample_profile = np.zeros(shape=n_gen)
+        for i in range(n_gen):
+            prob = softmax_output[:, i]
+            bin = np.random.choice(bins, size=1, p=prob)
+            sample_profile[i] = bin
+        return sample_profile
+
 class GeneEncoder(nn.Module):
     """
     given a gene expression vector of a cell, the function embedds the vector into lower
