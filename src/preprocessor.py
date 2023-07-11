@@ -3,6 +3,8 @@ import scanpy as sc
 import numpy as np
 from anndata import AnnData
 import torch
+from collections import Counter
+import matplotlib.pyplot as plt
 
 
 class Preprocessor:
@@ -68,20 +70,17 @@ class Preprocessor:
         # get full data matrix (includes zeros)
         data = self.data.X.toarray()
         binned_rows = []
-        bin_edges = []
         print(f'data:\n{data}')
         print(f'{data.shape}')
-        print(f'data > 3.86 = {len(data[data>3.86])}')
-        print(f'data > 3.37 = {len(data[data > 3.37])}')
         # perform value binning for whole data set
         idx_non_zero_i, idx_non_zero_j = data.nonzero()
         print(idx_non_zero_i)
         print(idx_non_zero_j)
         values_non_zero = data[idx_non_zero_i, idx_non_zero_j]
-        print(f'values_non_zero > 3.86 = {len(values_non_zero[values_non_zero>3.86])}')
+        print(f'values_non_zero > 7.1138792 = {len(values_non_zero[values_non_zero>=7.1138792])}')
         print(f'values_non_zero > 3.37 = {len(values_non_zero[values_non_zero > 3.37])}')
         # get borders of equally distributed bins
-        bins = np.quantile(values_non_zero, np.linspace(0, 1, self.n_bins - 1))
+        bins = np.quantile(values_non_zero, np.linspace(0, 1, self.n_bins-1))
         print(f'bins:\n{bins}')
         print(f'len_bins = {len(bins)}')
         print(f'min_value = {np.min(values_non_zero)}')
@@ -90,25 +89,38 @@ class Preprocessor:
         non_zero_ids = data[0].nonzero()
         non_zero_row = data[0][non_zero_ids]
         non_zero_digits = np.digitize(non_zero_row, bins)
-        print(f'non_zero_row: {non_zero_row}')
-        print(f'non_zero_digits: {non_zero_digits}')
+        all_binned = []
         for row in data:
             non_zero_ids = row.nonzero()
             non_zero_row = row[non_zero_ids]
             # spread all values equally across the bins
             #non_zero_digits = self._digitize(non_zero_row, bins)
-            non_zero_digits = np.digitize(non_zero_row, bins)
+            non_zero_digits = np.digitize(non_zero_row, bins, right=True)
             binned_row = np.zeros_like(row, dtype=np.int64)
             # assign genes to bins
             binned_row[non_zero_ids] = non_zero_digits
             binned_rows.append(binned_row)
-            bin_edges.append(np.concatenate([[0], bins]))
+            all_binned += list(binned_row)
         # construct matrix from binned rows
-        print(f'non zero row: {row}')
         self.binned_data = np.stack(binned_rows)
         print(f'unique values: {np.unique(self.binned_data)}')
-        self.create_bin_mapping(bins)
+        #self.create_bin_mapping(bins)
 
+        all_binned = np.array(all_binned)
+        c = Counter(list(all_binned[all_binned > 0]))
+        c = dict(sorted(c.items()))
+        for k, v in c.items():
+            print(k, v)
+        plt.hist(all_binned[all_binned > 0], bins=99)
+        plt.show()
+
+        # with 0
+        c = Counter(all_binned)
+        c = dict(sorted(c.items()))
+        for k, v in c.items():
+            print(k, v)
+        plt.hist(all_binned, bins=100)
+        plt.show()
 
     def _digitize(self, x: np.ndarray, bins: np.ndarray) -> np.ndarray:
         """
@@ -167,12 +179,12 @@ if __name__ == '__main__':
     anndata = scv.datasets.pancreas()
     p = Preprocessor(anndata, 100)
     p.preprocess()
-    print(p.binned_data)
-    print(f'output shape: {p.binned_data.shape}')
-    print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
-    print(f'number of non zeros: {np.count_nonzero(p.binned_data[0])}')
+    # print(p.binned_data)
+    # print(f'output shape: {p.binned_data.shape}')
+    # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
+    # print(f'number of non zeros: {np.count_nonzero(p.binned_data[0])}')
     non_zeros = np.count_nonzero(p.binned_data, axis=1)
-    print(f'number of non zeros: {non_zeros}')
-    print(f'{non_zeros.shape}')
-    print(f'mean of non zeros: {np.round(np.mean(non_zeros),decimals=0)}')
-    torch.save(p.binned_data, f'../data/test_values_wholeDataset.pt')
+    # print(f'number of non zeros: {non_zeros}')
+    # print(f'{non_zeros.shape}')
+    # print(f'mean of non zeros: {np.round(np.mean(non_zeros),decimals=0)}')
+    #torch.save(p.binned_data, f'../data/test_values_wholeDataset.pt')
