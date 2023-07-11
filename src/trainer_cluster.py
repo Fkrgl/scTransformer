@@ -184,6 +184,8 @@ class Trainer:
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
             trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, self.n_token)
             testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, self.n_token)
+            torch.save(trainset.data, f'../data/bin_investigation_train.pt')
+            torch.save(testset.data, f'../data/bin_investigation_test.pt')
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -206,16 +208,16 @@ class Trainer:
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             # generate masks:
-            # masks = []
-            # values = []
-            # for i, (x_val, mask) in enumerate(train_loader):
-            #     masks.append(mask)
-            #     values.append(x_val)
-            # masks = torch.cat(masks, dim=0)
-            # values = torch.cat(values, dim=0)
-            # torch.save(masks, f'../data/test_masks.pt')
-            # torch.save(values, f'../data/test_values.pt')
-            # sys.exit()
+            masks = []
+            values = []
+            for i, (x_val, mask) in enumerate(train_loader):
+                masks.append(mask)
+                values.append(x_val)
+            masks = torch.cat(masks, dim=0)
+            values = torch.cat(values, dim=0)
+            torch.save(masks, f'../data/test_masks.pt')
+            torch.save(values, f'../data/test_values.pt')
+            sys.exit()
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
                     print(i)

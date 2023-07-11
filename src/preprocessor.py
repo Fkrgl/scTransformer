@@ -80,7 +80,7 @@ class Preprocessor:
         print(f'values_non_zero > 7.1138792 = {len(values_non_zero[values_non_zero>=7.1138792])}')
         print(f'values_non_zero > 3.37 = {len(values_non_zero[values_non_zero > 3.37])}')
         # get borders of equally distributed bins
-        bins = np.quantile(values_non_zero, np.linspace(0, 1, self.n_bins-1))
+        bins = np.quantile(values_non_zero, np.linspace(0, 1, self.n_bins))
         print(f'bins:\n{bins}')
         print(f'len_bins = {len(bins)}')
         print(f'min_value = {np.min(values_non_zero)}')
