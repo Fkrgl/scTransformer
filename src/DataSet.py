@@ -1,19 +1,21 @@
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
+from typing import Optional
 import scvelo as scv
 from preprocessor import Preprocessor
 
 class scDataSet(Dataset):
     def __init__(self,
-                 data,
+                 data: np.ndarray,
                  n_non_zero_bins: int,
-                 n_tokens: int
+                 n_tokens: int,
+                 pad_value: Optional[int] = None
                  ):
         self.n_non_zero_bins = n_non_zero_bins
         self.n_tokens = n_tokens
-        # load data
         self.data = data
+        self.pad_value = pad_value
 
     def __len__(self):
         return len(self.data)
@@ -24,15 +26,6 @@ class scDataSet(Dataset):
         # generate mask for sample
         mask = self.get_balanced_mask(sample)
         return sample, mask
-
-    # def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
-    #     """
-    #     performs all preprocessing steps for scRNA data
-    #     """
-    #     p = Preprocessor(data, bins, min_counts_genes, n_hvg)
-    #     p.preprocess()
-    #     tokens = p.get_gene_tokens()
-    #     return p.binned_data, tokens
 
     # def get_prob_mask(self, expressions: torch.Tensor) -> torch.Tensor:
     #     """
@@ -54,7 +47,8 @@ class scDataSet(Dataset):
 
     def get_balanced_mask(self, sample):
         mask = np.zeros(self.n_tokens, dtype=bool)
-        n_non_zeros = np.count_nonzero(sample)
+        # only select non zero values that are not the padidng index
+        n_non_zeros = np.count_nonzero(sample[sample != self.pad_value])
         # trim n_non_zeros if its exceeds the maximal number of masked genes (=2*self.n_non_zero_bins)
         if n_non_zeros > 2*self.n_non_zero_bins:
             # in this case all masked genes have a non zero bin value
@@ -77,7 +71,12 @@ class scDataSet(Dataset):
         # print(f'n_zeros={n_zeros}')
         idx = np.arange(self.n_tokens)
         idx_zero = idx[sample == 0]
-        idx_non_zero = idx[sample != 0]
+        condition_non_zero = sample != 0
+        # do not select the padding index for masking
+        condition_non_pad = sample != self.pad_value
+        condition_combined = condition_non_zero & condition_non_pad
+        idx_non_zero = idx[condition_combined]
+        #print(f'len(idx_non_zero)={len(idx_non_zero)}')
         # randomly select genes to be masked
         idx_masked_zero = np.random.choice(idx_zero, n_zeros, replace=False)
         idx_masked_non_zero = np.random.choice(idx_non_zero, n_non_zeros, replace=False)
@@ -94,9 +93,17 @@ class scDataSet(Dataset):
 # p.preprocess()
 # tokens = p.get_gene_tokens()
 # data = p.binned_data
+# denta = scv.datasets.dentategyrus()
+# p2 = Preprocessor(denta, 100, padding_idx=100)
+# p2.preprocess_new_data()
+# print(p2.binned_data)
+# dataset = scDataSet(p2.binned_data, 22, 200, 100)
+# sample, mask = dataset.__getitem__(0)
+# print(sample)
+# print(mask)
 # p.get_mean_number_of_nonZero_bins()
 # dataset = scDataSet(data, p.mean_non_zero_bins, 200)
-# for i in range(len(data)):
+# for i in range(len(p2.binned_data)):
 #     sample, mask = dataset.__getitem__(i)
 #     print(f'size mask={mask.sum()}')
 # trainset, testset = random_split(dataset, [0.9, 0.1])

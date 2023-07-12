@@ -113,55 +113,55 @@ class Trainer:
                                      index_list]  # decoder: take a list of integers, output a string
         return encode, decode
 
-    def train(self, path: str, config=None) -> None:
+    def train(self, path_pancreas: str, path_denta:str, config=None) -> None:
         """
         creates and trains the Transformer model
         """
         # open training with wandb
         with wandb.init(config=config):
+            padding_idx = 100
             # load and
             config = wandb.config
-            print(f'mlm_prob: {config.mlm_probability}')
-            print(f'mlm_prob: {config.mlm_probability}')
             cell_type = config.cell_type
             ####### preprocess #######
             # load_data
-            data = scv.datasets.pancreas(path)
-            min_test_set = 481
-            max_test_set = 642
-            n_train_set = len(data) - max_test_set
-            data.obs.reset_index(inplace=True)
-            # split for not omit any cell type
-            if cell_type == 'None':
-                idx_all = np.arange(len(data))
-                idx_test_cells = np.random.choice(idx_all, size=min_test_set, replace=False)
-                idx_rest = list(set(idx_all) - set(idx_test_cells))
-                idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train_set, replace=False)
-            elif cell_type == 'endstates':
-                endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
-                idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
-                idx_not_endstates = data.obs[~data.obs.clusters.isin(endstates)].index.values
-                idx_test_cells = idx_enstates
-                idx_train_cells = idx_not_endstates
-            elif cell_type == 'earlystates':
-                earlystates = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP']
-                idx_earlystates = data.obs[data.obs.clusters.isin(earlystates)].index.values
-                idx_not_earlystates = data.obs[~data.obs.clusters.isin(earlystates)].index.values
-                idx_test_cells = idx_earlystates
-                idx_train_cells = idx_not_earlystates
-            elif cell_type == 'multiple':
-                multiple = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP', 'Alpha', 'Beta', 'Delta']
-                idx_multiple = data.obs[data.obs.clusters.isin(multiple)].index.values
-                idx_not_multiple = data.obs[~data.obs.clusters.isin(multiple)].index.values
-                idx_test_cells = idx_multiple
-                idx_train_cells = idx_not_multiple
-
-            # split for omit cell type
-            else:
-                idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
-                idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
-                idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
-                idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
+            data_pancreas = scv.datasets.pancreas(path_pancreas)
+            data_denta = scv.datasets.dentategyrus(path_denta)
+            # min_test_set = 481
+            # max_test_set = 642
+            # n_train_set = len(data) - max_test_set
+            # data.obs.reset_index(inplace=True)
+            # # split for not omit any cell type
+            # if cell_type == 'None':
+            #     idx_all = np.arange(len(data))
+            #     idx_test_cells = np.random.choice(idx_all, size=min_test_set, replace=False)
+            #     idx_rest = list(set(idx_all) - set(idx_test_cells))
+            #     idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train_set, replace=False)
+            # elif cell_type == 'endstates':
+            #     endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
+            #     idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
+            #     idx_not_endstates = data.obs[~data.obs.clusters.isin(endstates)].index.values
+            #     idx_test_cells = idx_enstates
+            #     idx_train_cells = idx_not_endstates
+            # elif cell_type == 'earlystates':
+            #     earlystates = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP']
+            #     idx_earlystates = data.obs[data.obs.clusters.isin(earlystates)].index.values
+            #     idx_not_earlystates = data.obs[~data.obs.clusters.isin(earlystates)].index.values
+            #     idx_test_cells = idx_earlystates
+            #     idx_train_cells = idx_not_earlystates
+            # elif cell_type == 'multiple':
+            #     multiple = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP', 'Alpha', 'Beta', 'Delta']
+            #     idx_multiple = data.obs[data.obs.clusters.isin(multiple)].index.values
+            #     idx_not_multiple = data.obs[~data.obs.clusters.isin(multiple)].index.values
+            #     idx_test_cells = idx_multiple
+            #     idx_train_cells = idx_not_multiple
+            #
+            # # split for omit cell type
+            # else:
+            #     idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
+            #     idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
+            #     idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
+            #     idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
 
             # check with plot
             # umap = data.obsm['X_umap']
@@ -176,22 +176,30 @@ class Trainer:
             # print()
             # print(f'testset clusters:\n{data[idx_test_cells].obs.clusters}')
             # print()
-            # preprocess
-            p = Preprocessor(data, config.n_bin, self.min_counts_genes, self.n_token)
+            # preprocess pancreas data
+            p = Preprocessor(data_pancreas, config.n_bin, self.min_counts_genes, self.n_token)
             p.permute()
             p.preprocess()
             p.get_mean_number_of_nonZero_bins()
             tokens = p.get_gene_tokens()
-            data = p.binned_data
+            data_pancreas = p.binned_data
+            # preprocess denta data
+            p2 = Preprocessor(data_denta, config.n_bin, self.min_counts_genes, self.n_token, padding_idx=padding_idx)
+            p2.preprocess_new_data()
+            data_denta = p2.binned_data
+            print(f'pancreas data: {data_pancreas}')
+            print(f'shape pancreas data: {data_pancreas.shape}')
+            print(f'denta data: {data_denta}')
+            print(f'shape denta data: {data_denta.shape}')
             # split data
             print(f'number of tokens: {self.n_token}')
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
-            trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, self.n_token)
-            testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, self.n_token)
-            torch.save(trainset.data, f'../data/bin_investigation_train.pt')
-            torch.save(testset.data, f'../data/bin_investigation_test.pt')
+            trainset = scDataSet(data_pancreas, p.mean_non_zero_bins, self.n_token)
+            testset = scDataSet(data_denta, p.mean_non_zero_bins, self.n_token)
+            # torch.save(trainset.data, f'../data/bin_investigation_train.pt')
+            # torch.save(testset.data, f'../data/bin_investigation_test.pt')
             # encode gene names
-            n_token = len(tokens)
+            n_token = len(tokens) + 1   # +1 because of padding token
             encode, decode = self.get_gene_encode_decode(tokens)
             x_src = torch.tensor(encode(tokens))
             # generate data loaders
@@ -202,9 +210,11 @@ class Trainer:
             model = TransformerModel(d_model=self.n_embd,
                                      dim_feedforward=self.dim_feedforward,
                                      nlayers=self.n_layer,
-                                     n_input_bins=config.n_bin,
+                                     n_input_bins=config.n_bin+1, # because of pad_value
                                      n_token=n_token,
-                                     nhead=self.n_head)
+                                     nhead=self.n_head,
+                                     pad_value=padding_idx,
+                                     encode=encode)
             wandb.watch(model, log='all', log_freq=np.ceil(n_train/self.batch_size))
             m = model.to(self.device)
             # print the number of parameters in the model
@@ -212,19 +222,18 @@ class Trainer:
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             # generate masks:
-            masks = []
-            values = []
-            for i, (x_val, mask) in enumerate(train_loader):
-                masks.append(mask)
-                values.append(x_val)
-            masks = torch.cat(masks, dim=0)
-            values = torch.cat(values, dim=0)
-            torch.save(masks, f'../data/test_masks.pt')
-            torch.save(values, f'../data/test_values.pt')
-            sys.exit()
+            # masks = []
+            # values = []
+            # for i, (x_val, mask) in enumerate(train_loader):
+            #     masks.append(mask)
+            #     values.append(x_val)
+            # masks = torch.cat(masks, dim=0)
+            # values = torch.cat(values, dim=0)
+            # torch.save(masks, f'../data/test_masks.pt')
+            # torch.save(values, f'../data/test_values.pt')
+            # start train loop
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
-                    print(i)
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
                     loss = model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device))
@@ -288,9 +297,9 @@ class Trainer:
 
 if __name__ == '__main__':
     # hyperparameters
-    batch_size = 264
+    batch_size = 256
     n_token = 200
-    n_epoch = 2000
+    n_epoch = 1
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
@@ -299,12 +308,13 @@ if __name__ == '__main__':
     dim_feedforward = 100
     n_head = 2
     n_layer = 2
-    n_bin = 200
+    n_bin = 100
     dropout = 0.5
     min_counts_genes = 10
     mlm_probability = None
     seed = 1234
-    dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
+    path_pancreas = '../data/Pancreas/endocrinogenesis_day15.h5ad'
+    path_denta = '../data/DentateGyrus/10X43_1.h5ad'
 
     # create model
     trainer = Trainer(
@@ -328,4 +338,4 @@ if __name__ == '__main__':
         test_mode=False
     )
 
-    trainer.train(dataset_path)
+    trainer.train(path_pancreas, path_denta)

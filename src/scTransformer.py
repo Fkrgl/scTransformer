@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch import Tensor
-from typing import Optional, Dict
+from typing import Optional, Dict, Callable
 # encoder layers are based on paper "Attention is all you need"
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmetrics import Accuracy
@@ -16,9 +16,10 @@ class TransformerModel(nn.Module):
                  dim_feedforward: int,
                  nlayers: int,
                  n_input_bins: int,
+                 pad_value: int,
                  dropout: Optional[float] = None,
                  pad_token: str = "<pad>",
-                 pad_value: int = 0,
+                 encode: Optional[Callable] = None
                  ):
         """
 
@@ -29,6 +30,10 @@ class TransformerModel(nn.Module):
             dim_feedforward: dim of the hidden layer in the feed forward network of the encoder
             nlayers: number of attention layers
             dropout:
+            n_input_bins: number of bins of the model
+            pad_value: the value that is used to pad the binned expression values
+            pad_token: the token that is used to pad gene names that are not in the sample
+            encode: function that maps the pad_token to its index (should be 0)
         """
         super().__init__()
         # parameters
@@ -36,10 +41,14 @@ class TransformerModel(nn.Module):
         self.activation = "relu"
         self.n_input_bins = n_input_bins
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.pad_token = pad_token
+        self.pad_value = pad_value
+        print(f'pad_token: {pad_token}')
+        print(f'test mapping: {encode([self.pad_token])}. If zero, mapping is right')
 
         # define the gene encoder
-        self.encoder = GeneEncoder(n_token, d_model)
-        self.value_encoder = ValueEncoder(self.n_input_bins, d_model)
+        self.encoder = GeneEncoder(n_token, d_model, padding_idx=encode([self.pad_token])[0])
+        self.value_encoder = ValueEncoder(self.n_input_bins, d_model, padding_idx=self.pad_value)
         # define the transformer encoder
         encoder_layers = TransformerEncoderLayer(d_model=d_model,
                                                  nhead=nhead,

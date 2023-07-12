@@ -69,23 +69,23 @@ print(torch.zeros(3))
 # print(torch.transpose(input, 0, 1))
 
 # look at network output
-print()
-label = torch.load('../data/val_input_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
-pred = torch.load('../data/reconstructed_profiles_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
-mask = torch.load('../data/masks_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
-print(mask[1])
-print(f'shape of mask: {mask[1].shape}')
-l = label[1]
-print(f'shape of label: {label.shape}')
-p = pred[1]
-print(f'shape of pred: {pred.shape}')
-m = mask[1]
-print(p[:,1])
-print(l[m])
-print(p[m,4])
-print(p[m,4].shape)
-
-s = nn.Softmax(dim=0)
+# print()
+# label = torch.load('../data/val_input_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
+# pred = torch.load('../data/reconstructed_profiles_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
+# mask = torch.load('../data/masks_multipleLeaveOut_100_epochs.pt', map_location=torch.device('cpu'))
+# print(mask[1])
+# print(f'shape of mask: {mask[1].shape}')
+# l = label[1]
+# print(f'shape of label: {label.shape}')
+# p = pred[1]
+# print(f'shape of pred: {pred.shape}')
+# m = mask[1]
+# print(p[:,1])
+# print(l[m])
+# print(p[m,4])
+# print(p[m,4].shape)
+#
+# s = nn.Softmax(dim=0)
 # for i in range(pred.shape[0]):
 #     print(s(pred[i, 0 ,:]))
 #for i in range(4):
@@ -93,11 +93,20 @@ s = nn.Softmax(dim=0)
 # plt.legend()
 # plt.show()
 
-print(l)
-print(l.shape[0])
-idx = np.arange(l.shape[0])
-print(l==0)
-print(idx[l==0])
-print(idx[l==0].shape)
-print(np.random.choice(idx[l!=0], 12, replace=False))
-print(np.zeros(5, dtype=bool))
+# print(l)
+# print(l.shape[0])
+# idx = np.arange(l.shape[0])
+# print(l==0)
+# print(idx[l==0])
+# print(idx[l==0].shape)
+# print(np.random.choice(idx[l!=0], 12, replace=False))
+# print(np.zeros(5, dtype=bool))
+
+a = np.array([0, 1, 10, 0, 3, 100, 100, 100])
+idx = np.arange(len(a))
+c1 = a!=0
+c2 = a!=None
+c3 = c1 & c2
+print(c1 & c2)
+idx_non_zero = idx[c3]
+print(idx_non_zero)
