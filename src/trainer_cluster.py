@@ -1,5 +1,4 @@
 import sys
-
 from scTransformer import *
 from preprocessor import Preprocessor
 import torch
@@ -174,7 +173,7 @@ class Trainer:
             # print()
             # preprocess
             p = Preprocessor(data, config.n_bin, self.min_counts_genes, self.n_token)
-            p.permute()
+            #p.permute()
             p.preprocess()
             p.get_mean_number_of_nonZero_bins()
             tokens = p.get_gene_tokens()
@@ -240,6 +239,8 @@ class Trainer:
                 #     torch.save(reconstructed_profiles, f'../data/predictions_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
+            # save model
+            torch.save(m.state_dict(), '../data/model_1.pth')
 
 
 
