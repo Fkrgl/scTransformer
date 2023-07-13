@@ -240,7 +240,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
             # save model
-            torch.save(m.state_dict(), '../data/model_1.pth')
+            torch.save(m.state_dict(), '../data/model_2.pth')
 
 
 

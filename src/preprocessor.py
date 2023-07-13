@@ -93,8 +93,10 @@ class Preprocessor:
             all_binned += list(binned_row)
         # construct matrix from binned rows
         self.binned_data = np.stack(binned_rows)
-        #self.create_bin_mapping(bins)
-
+        self.create_bin_mapping(bins)
+        # print(f'bins: {bins}')
+        # print(f'len(bins): {len(bins)}')
+        #
         # all_binned = np.array(all_binned)
         # c = Counter(list(all_binned[all_binned > 0]))
         # c = dict(sorted(c.items()))
@@ -140,11 +142,14 @@ class Preprocessor:
         return digits
 
     def create_bin_mapping(self, bins):
+        bins = np.hstack((np.array([0]), bins))
+        #print(bins)
         bins_to_value = {}
         for i in range(len(bins)-1):
             bins_to_value[i] = (bins[i] + bins[i+1]) / 2
         bins_to_value[0] = 0
-        print(bins_to_value)
+        self.bin_to_expression = bins_to_value
+        #print(bins_to_value)
 
 
     def permute(self):
@@ -172,7 +177,7 @@ if __name__ == '__main__':
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
     # print(f'number of non zeros: {np.count_nonzero(p.binned_data[0])}')
-    non_zeros = np.count_nonzero(p.binned_data, axis=1)
+    #non_zeros = np.count_nonzero(p.binned_data, axis=1)
     # print(f'number of non zeros: {non_zeros}')
     # print(f'{non_zeros.shape}')
     # print(f'mean of non zeros: {np.round(np.mean(non_zeros),decimals=0)}')
