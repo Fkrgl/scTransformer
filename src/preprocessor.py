@@ -70,21 +70,11 @@ class Preprocessor:
         # get full data matrix (includes zeros)
         data = self.data.X.toarray()
         binned_rows = []
-        print(f'data:\n{data}')
-        print(f'{data.shape}')
         # perform value binning for whole data set
         idx_non_zero_i, idx_non_zero_j = data.nonzero()
-        print(idx_non_zero_i)
-        print(idx_non_zero_j)
         values_non_zero = data[idx_non_zero_i, idx_non_zero_j]
-        print(f'values_non_zero > 7.1138792 = {len(values_non_zero[values_non_zero>=7.1138792])}')
-        print(f'values_non_zero > 3.37 = {len(values_non_zero[values_non_zero > 3.37])}')
         # get borders of equally distributed bins
         bins = np.quantile(values_non_zero, np.linspace(0, 1, self.n_bins))
-        print(f'bins:\n{bins}')
-        print(f'len_bins = {len(bins)}')
-        print(f'min_value = {np.min(values_non_zero)}')
-        print(f'max_value = {np.max(values_non_zero)}')
         # the 0 bin is from 0 to bin_1
         non_zero_ids = data[0].nonzero()
         non_zero_row = data[0][non_zero_ids]
@@ -103,24 +93,23 @@ class Preprocessor:
             all_binned += list(binned_row)
         # construct matrix from binned rows
         self.binned_data = np.stack(binned_rows)
-        print(f'unique values: {np.unique(self.binned_data)}')
         #self.create_bin_mapping(bins)
 
-        all_binned = np.array(all_binned)
-        c = Counter(list(all_binned[all_binned > 0]))
-        c = dict(sorted(c.items()))
-        for k, v in c.items():
-            print(k, v)
-        plt.hist(all_binned[all_binned > 0], bins=99)
-        plt.show()
-
-        # with 0
-        c = Counter(all_binned)
-        c = dict(sorted(c.items()))
-        for k, v in c.items():
-            print(k, v)
-        plt.hist(all_binned, bins=100)
-        plt.show()
+        # all_binned = np.array(all_binned)
+        # c = Counter(list(all_binned[all_binned > 0]))
+        # c = dict(sorted(c.items()))
+        # for k, v in c.items():
+        #     print(k, v)
+        # plt.hist(all_binned[all_binned > 0], bins=99)
+        # plt.show()
+        #
+        # # with 0
+        # c = Counter(all_binned)
+        # c = dict(sorted(c.items()))
+        # for k, v in c.items():
+        #     print(k, v)
+        # plt.hist(all_binned, bins=100)
+        # plt.show()
 
     def _digitize(self, x: np.ndarray, bins: np.ndarray) -> np.ndarray:
         """

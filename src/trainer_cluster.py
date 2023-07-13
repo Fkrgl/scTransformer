@@ -184,8 +184,6 @@ class Trainer:
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
             trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, self.n_token)
             testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, self.n_token)
-            torch.save(trainset.data, f'../data/bin_investigation_train.pt')
-            torch.save(testset.data, f'../data/bin_investigation_test.pt')
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -208,19 +206,19 @@ class Trainer:
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             # generate masks:
-            masks = []
-            values = []
-            for i, (x_val, mask) in enumerate(train_loader):
-                masks.append(mask)
-                values.append(x_val)
-            masks = torch.cat(masks, dim=0)
-            values = torch.cat(values, dim=0)
-            torch.save(masks, f'../data/test_masks.pt')
-            torch.save(values, f'../data/test_values.pt')
-            sys.exit()
+            # masks = []
+            # values = []
+            # for i, (x_val, mask) in enumerate(train_loader):
+            #     masks.append(mask)
+            #     values.append(x_val)
+            # masks = torch.cat(masks, dim=0)
+            # values = torch.cat(values, dim=0)
+            # torch.save(masks, f'../data/test_masks.pt')
+            # torch.save(values, f'../data/test_values.pt')
+            check_instances = [20, 100, 199]
+            # training loop
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
-                    print(i)
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
                     loss = model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device))
@@ -234,14 +232,16 @@ class Trainer:
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(loss, test_loss, test_accuracy, epoch)
-                # if last epoch is reached, get validation reconstructions and perform Classifier2SampleTest
-                # if epoch == self.n_epoch - 1:
-                #     val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
-                #     print(reconstructed_profiles.shape)
-                #     print(val_input.shape)
-                #     torch.save(reconstructed_profiles, f'../data/reconstructed_profiles_test_{config.cell_type}_100_epochs.pt')
-                #     torch.save(val_input, f'../data/val_input_test_{config.cell_type}_100_epochs.pt')
-                #     torch.save(masks, f'../data/masks_test_{config.cell_type}_100_epochs.pt')
+                # get model predictions
+                if epoch in check_instances:
+                    val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
+                    print(reconstructed_profiles.shape)
+                    print(val_input.shape)
+                    torch.save(reconstructed_profiles, f'../data/predictions_{config.cell_type}_epoch_{epoch}.pt')
+                    torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
+                    torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
+
+
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) \
             -> Tuple[float, float]:
@@ -286,7 +286,7 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
     n_token = 200
-    n_epoch = 2000
+    n_epoch = 200
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10

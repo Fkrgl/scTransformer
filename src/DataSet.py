@@ -25,15 +25,6 @@ class scDataSet(Dataset):
         mask = self.get_balanced_mask(sample)
         return sample, mask
 
-    # def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
-    #     """
-    #     performs all preprocessing steps for scRNA data
-    #     """
-    #     p = Preprocessor(data, bins, min_counts_genes, n_hvg)
-    #     p.preprocess()
-    #     tokens = p.get_gene_tokens()
-    #     return p.binned_data, tokens
-
     # def get_prob_mask(self, expressions: torch.Tensor) -> torch.Tensor:
     #     """
     #     generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
