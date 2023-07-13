@@ -233,13 +233,13 @@ class Trainer:
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(loss, test_loss, test_accuracy, epoch)
                 # get model predictions
-                if epoch in check_instances:
-                    val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
-                    print(reconstructed_profiles.shape)
-                    print(val_input.shape)
-                    torch.save(reconstructed_profiles, f'../data/predictions_{config.cell_type}_epoch_{epoch}.pt')
-                    torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
-                    torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
+                # if epoch in check_instances:
+                #     val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
+                #     print(reconstructed_profiles.shape)
+                #     print(val_input.shape)
+                #     torch.save(reconstructed_profiles, f'../data/predictions_{config.cell_type}_epoch_{epoch}.pt')
+                #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
+                #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
 
 
 
