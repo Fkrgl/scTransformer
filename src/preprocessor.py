@@ -71,7 +71,7 @@ class Preprocessor:
         sc.pp.log1p(self.data)
 
         # get highly varaible genes (hvg)
-        sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True)
+        metrics = sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True)
         # save hvg gene names
         self.hvg = self.data.var.index.values
         np.save('../data/hvg_pancreas.npy', self.hvg)
@@ -223,9 +223,10 @@ if __name__ == '__main__':
     anndata = scv.datasets.pancreas()
     p = Preprocessor(anndata, 100)
     p.preprocess()
-    denta = scv.datasets.dentategyrus()
-    p2 = Preprocessor(denta, 100, padding_idx=100)
-    p2.preprocess_new_data()
+    torch.save(p.binned_data, '../data/pancreas_binned.pt')
+    # denta = scv.datasets.dentategyrus()
+    # p2 = Preprocessor(denta, 100, padding_idx=100)
+    # p2.preprocess_new_data()
     # print(p2.binned_data)
     # print(f'output shape: {p2.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
