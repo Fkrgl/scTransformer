@@ -8,6 +8,7 @@ import numpy as np
 from DataSet import scDataSet
 from umap import UMAP
 import matplotlib.pyplot as plt
+import sys
 
 # model parameters
 d_model = 10
@@ -56,11 +57,13 @@ model2.eval()
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 data = scv.datasets.pancreas(dataset_path)
 p = Preprocessor(data, n_input_bins, 10, n_token)
-p.permute()
 p.preprocess()
 p.get_mean_number_of_nonZero_bins()
 tokens = p.get_gene_tokens()
 data = p.binned_data
+
+print()
+
 # split data
 print(f'number of tokens: {n_token}')
 print(f'number of non zero bins: {p.mean_non_zero_bins}')
@@ -71,25 +74,26 @@ encode, decode = get_gene_encode_decode(tokens)
 x_src = torch.tensor(encode(tokens))
 
 # generate
-val, _ = dataset.__getitem__(0)
-sample_profile = model.generate(x_src, val, np.arange(100))
+val, _ = dataset.__getitem__(3012)
+sample_profile = model2.generate(x_src, val, np.arange(100))
 print(sample_profile)
 # next: translate bins into expression values
 sample_profile = model2.generate(x_src, val, np.arange(100))
 bin_to_expression = p.bin_to_expression
 to_expression = lambda bins: [bin_to_expression[b] for b in bins]
-data_preprocessed = np.empty_like(data[0])
+data_preprocessed = []
 for binned_data in data:
-    data_preprocessed = np.vstack([data_preprocessed, to_expression(binned_data)])
+    data_preprocessed.append(to_expression(binned_data))
+data_preprocessed = np.vstack(data_preprocessed) # cut out empty array
 print(data_preprocessed.shape)
-
 # sample multiple profiles
-n_samples = 10000
-expression_profiles = np.array(to_expression(val.detach().numpy()))
+n_samples = 1000
+expression_profiles = []
 for i in range(n_samples):
-    sample_profile = model2.generate(x_src, val, np.arange(100))
-    expression = to_expression(sample_profile)
-    expression_profiles = np.vstack((expression_profiles, expression))
+    generated_profile = model2.generate(x_src, val, np.arange(100))
+    expression = to_expression(generated_profile)
+    expression_profiles.append(expression)
+expression_profiles = np.vstack(expression_profiles)
 # print(expression_profiles)
 # std = expression_profiles.std(axis=0)
 # print(f'std for each gene: {expression_profiles.std(axis=0)}')
@@ -108,13 +112,21 @@ for i in range(n_samples):
 # plt.ylabel('umap 2')
 # #plt.show()
 # plt.savefig('Umap_generated_amples.png')
+def generate_color_vector(anndata):
+    clusters = anndata.obs.clusters
+    categories = anndata.obs.clusters.unique()
+    cmap = plt.cm.get_cmap('hsv', len(categories) + 1)
+    cluster_to_color = {categories[i]: cmap(i) for i in range(len(categories))}
+    color = [cluster_to_color[clu] for clu in clusters]
+    return color
 
 # create umap
 umap_2d = UMAP(n_components=2, init='random', random_state=0)
 data_preprocessed = np.round(data_preprocessed, decimals=5)
 proj_2d = umap_2d.fit_transform(np.vstack([data_preprocessed, expression_profiles]))
 src_profile = np.array(to_expression(val.detach().numpy()))
-print(src_profile)
+print(f'src profile\n{src_profile}')
+print(f'example other profile\n {expression_profiles[765]}')
 proj_src = umap_2d.transform(src_profile.reshape(1, -1))
 #proj_generated_profiles = umap_2d.transform(expression_profiles)
 print(proj_2d)
@@ -127,5 +139,7 @@ ax[0].scatter(proj_src[0][0], proj_src[0][1], c='green', s=100)
 fig.suptitle(f'umap of binned expression profiles')
 fig.supxlabel('umap 1')
 fig.supylabel('umap 2')
-ax[1].scatter(proj_2d[:, 0], proj_2d[:, 1], c='blue', alpha=.5)
+color = generate_color_vector(scv.datasets.pancreas(dataset_path))
+print(proj_2d.shape)
+ax[1].scatter(proj_2d[:n_pancreas, 0], proj_2d[:n_pancreas, 1], c=color, alpha=.5)
 plt.show()
