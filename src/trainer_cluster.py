@@ -76,25 +76,6 @@ class Trainer:
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
 
-    # +---------------------------+ prepare the data +---------------------------+
-    def load_data(self):
-        """
-        loads the data set
-        """
-        if self.subset:
-            return scv.datasets.pancreas()[:self.subset]
-        return scv.datasets.pancreas()
-
-    def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
-        """
-        perfoms all preprocessing steps for scRNA data
-        """
-        p = Preprocessor(data, bins, min_counts_genes, n_hvg)
-        # permute for random split into train and val set later
-        p.permute()
-        p.preprocess()
-        return p
-
     def get_gene_encode_decode(self, token_names: list):
         """
         Returns: encoder and decoder functions that map gene names to integer and vise versa
@@ -182,8 +163,8 @@ class Trainer:
             # split data
             print(f'number of tokens: {self.n_token}')
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
-            trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, self.n_token)
-            testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, self.n_token)
+            trainset = scDataSet(data[idx_train_cells], config.mlm_probability, self.n_token)
+            testset = scDataSet(data[idx_test_cells], config.mlm_probability, self.n_token)
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
