@@ -130,10 +130,12 @@ class Trainer:
             data.obs.reset_index(inplace=True)
             # split for not omit any cell type
             if cell_type == 'None':
+                n_train = int(0.9 * len(data))
+                n_test = int(len(data) - n_train)
                 idx_all = np.arange(len(data))
-                idx_test_cells = np.random.choice(idx_all, size=min_test_set, replace=False)
+                idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
                 idx_rest = list(set(idx_all) - set(idx_test_cells))
-                idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train_set, replace=False)
+                idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train, replace=False)
             elif cell_type == 'endstates':
                 endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
                 idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
