@@ -44,37 +44,44 @@ class scDataSet(Dataset):
     #     return mask
 
     def get_balanced_mask(self, sample):
-        mask = np.zeros(self.n_tokens, dtype=bool)
-        n_non_zeros = np.count_nonzero(sample)
-        # trim n_non_zeros if its exceeds the maximal number of masked genes (=2*self.n_non_zero_bins)
-        if n_non_zeros > 2*self.n_non_zero_bins:
-            # in this case all masked genes have a non zero bin value
-            n_non_zeros = 2*self.n_non_zero_bins
-        #print(f'number of non zero bins: {n_non_zeros}')
-        n_zeros = self.n_non_zero_bins
-        # less non zero bins than average
-        if n_non_zeros < self.n_non_zero_bins:
-            diff = self.n_non_zero_bins - n_non_zeros
-            # print(f'less non zero genes. diff={diff}')
-            # print(f'n_zeros = {self.n_non_zero_bins} + {diff}')
-            n_zeros = self.n_non_zero_bins + diff
-        # more non-zero bins than average
-        elif n_non_zeros > self.n_non_zero_bins:
-            diff = n_non_zeros - self.n_non_zero_bins
-            # print(f'more non zero genes. diff={diff}')
-            # print(f'n_zeros = {self.n_non_zero_bins} - {diff}')
-            n_zeros = self.n_non_zero_bins - diff
-        # sample indeces
-        # print(f'n_zeros={n_zeros}')
-        idx = np.arange(self.n_tokens)
-        idx_zero = idx[sample == 0]
-        idx_non_zero = idx[sample != 0]
-        # randomly select genes to be masked
-        idx_masked_zero = np.random.choice(idx_zero, n_zeros, replace=False)
-        idx_masked_non_zero = np.random.choice(idx_non_zero, n_non_zeros, replace=False)
-        # mask
-        mask[idx_masked_zero] = True
-        mask[idx_masked_non_zero] = True
+        if self.n_non_zero_bins == 1:
+            mask = np.zeros(self.n_tokens, dtype=bool)
+            idx = np.arange(self.n_tokens)
+            rand_index = np.random.choice(idx, 1, replace=False)
+            mask[rand_index] = True
+
+        else:
+            mask = np.zeros(self.n_tokens, dtype=bool)
+            n_non_zeros = np.count_nonzero(sample)
+            # trim n_non_zeros if its exceeds the maximal number of masked genes (=2*self.n_non_zero_bins)
+            if n_non_zeros > 2*self.n_non_zero_bins:
+                # in this case all masked genes have a non zero bin value
+                n_non_zeros = 2*self.n_non_zero_bins
+            #print(f'number of non zero bins: {n_non_zeros}')
+            n_zeros = self.n_non_zero_bins
+            # less non zero bins than average
+            if n_non_zeros < self.n_non_zero_bins:
+                diff = self.n_non_zero_bins - n_non_zeros
+                # print(f'less non zero genes. diff={diff}')
+                # print(f'n_zeros = {self.n_non_zero_bins} + {diff}')
+                n_zeros = self.n_non_zero_bins + diff
+            # more non-zero bins than average
+            elif n_non_zeros > self.n_non_zero_bins:
+                diff = n_non_zeros - self.n_non_zero_bins
+                # print(f'more non zero genes. diff={diff}')
+                # print(f'n_zeros = {self.n_non_zero_bins} - {diff}')
+                n_zeros = self.n_non_zero_bins - diff
+            # sample indeces
+            # print(f'n_zeros={n_zeros}')
+            idx = np.arange(self.n_tokens)
+            idx_zero = idx[sample == 0]
+            idx_non_zero = idx[sample != 0]
+            # randomly select genes to be masked
+            idx_masked_zero = np.random.choice(idx_zero, n_zeros, replace=False)
+            idx_masked_non_zero = np.random.choice(idx_non_zero, n_non_zeros, replace=False)
+            # mask
+            mask[idx_masked_zero] = True
+            mask[idx_masked_non_zero] = True
         return mask
 
 

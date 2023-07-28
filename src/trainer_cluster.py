@@ -183,6 +183,9 @@ class Trainer:
             # split data
             print(f'number of tokens: {n_token}')
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
+            # set masking probability manually if mean number of non zero genes is zero
+            if p.mean_non_zero_bins == 0:
+                p.mean_non_zero_bins = 1
             trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, n_token)
             testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, n_token)
             # encode gene names
@@ -287,7 +290,7 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
     n_token = 200
-    n_epoch = 400
+    n_epoch = 200
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
