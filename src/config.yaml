@@ -1,0 +1,14 @@
+program: /home/claassen/cxb257/scTransformer/src/trainer_cluster.py
+method: grid
+metric:
+  name: test_loss
+  goal: minimize
+parameters:
+    mlm_probability:
+        value: [1, 22, 50, 100]
+    n_bin:
+        value : 100
+    batch_size:
+        value: 256
+    cell_type:
+        value: 'None'

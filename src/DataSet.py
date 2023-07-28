@@ -74,6 +74,13 @@ class scDataSet(Dataset):
             idx_masked_zero = np.random.choice(idx, 1, replace=False)
             # mask
             mask[idx_masked_zero] = True
+        elif self.n_non_zero_bins == 100:
+            # set all genes to masked and only unmask one gene
+            mask = np.ones(self.n_tokens, dtype=bool)
+            idx = np.arange(self.n_tokens)
+            idx_unmask = np.random.choice(idx, 1, replace=False)
+            mask[idx_unmask] = False
+
         else:
             mask = np.zeros(self.n_tokens, dtype=bool)
             n_non_zeros = np.count_nonzero(sample)
@@ -110,18 +117,18 @@ class scDataSet(Dataset):
 
 
 
-path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
-data = scv.datasets.pancreas(path)
-p = Preprocessor(data, 100, 10, 200)
-p.preprocess()
-tokens = p.get_gene_tokens()
-data = p.binned_data
-p.get_mean_number_of_nonZero_bins()
-dataset = scDataSet(data, 2, 200)
-#for i in range(len(data)):
-sample, mask = dataset.__getitem__(0)
-print(mask)
-print(f'size mask={mask.sum()}')
+# path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
+# data = scv.datasets.pancreas(path)
+# p = Preprocessor(data, 100, 10, 200)
+# p.preprocess()
+# tokens = p.get_gene_tokens()
+# data = p.binned_data
+# p.get_mean_number_of_nonZero_bins()
+# dataset = scDataSet(data, 100, 200)
+# #for i in range(len(data)):
+# sample, mask = dataset.__getitem__(0)
+# print(mask)
+# print(f'size mask={mask.sum()}')
 # trainset, testset = random_split(dataset, [0.9, 0.1])
 # train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
 # test_loader = DataLoader(testset, batch_size=10, shuffle=True)
