@@ -109,6 +109,8 @@ class TransformerModel(nn.Module):
         mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
         # get only vectors of masked genes
         masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
+        masked_pred_exp = torch.zeros_like(masked_pred_exp).requires_grad_(True)
+        #print(f'masked_pred_exp: {masked_pred_exp}')
         loss = self.loss(masked_pred_exp, masked_label_exp)
         output = loss
         # get reconstructed profiles
