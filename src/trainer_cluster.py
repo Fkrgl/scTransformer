@@ -114,12 +114,13 @@ class Trainer:
         creates and trains the Transformer model
         """
         # open training with wandb
-        with wandb.init(config=config):
+        with wandb.init(config=config, dir='/mnt/qb/work/claassen/cxb257/wandb'):
             # load and
             config = wandb.config
             print(f'mlm_prob: {config.mlm_probability}')
             print(f'mlm_prob: {config.mlm_probability}')
             cell_type = config.cell_type
+            n_token = config.n_token
             ####### preprocess #######
             # load_data
             data = scv.datasets.pancreas(path)
@@ -173,17 +174,17 @@ class Trainer:
             # print(f'testset clusters:\n{data[idx_test_cells].obs.clusters}')
             # print()
             # preprocess
-            p = Preprocessor(data, config.n_bin, self.min_counts_genes, self.n_token)
+            p = Preprocessor(data, config.n_bin, self.min_counts_genes, n_token)
             p.permute()
             p.preprocess()
             p.get_mean_number_of_nonZero_bins()
             tokens = p.get_gene_tokens()
             data = p.binned_data
             # split data
-            print(f'number of tokens: {self.n_token}')
+            print(f'number of tokens: {n_token}')
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
-            trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, self.n_token)
-            testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, self.n_token)
+            trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, n_token)
+            testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, n_token)
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -286,7 +287,7 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
     n_token = 200
-    n_epoch = 200
+    n_epoch = 400
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
