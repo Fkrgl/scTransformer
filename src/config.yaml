@@ -5,7 +5,7 @@ metric:
   goal: minimize
 parameters:
     mlm_probability:
-        value: [1, 22, 50, 100]
+        values: [1, 22, 50, 100]
     n_bin:
         value : 100
     batch_size:
