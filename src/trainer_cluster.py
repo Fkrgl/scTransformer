@@ -76,25 +76,6 @@ class Trainer:
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
 
-    # +---------------------------+ prepare the data +---------------------------+
-    def load_data(self):
-        """
-        loads the data set
-        """
-        if self.subset:
-            return scv.datasets.pancreas()[:self.subset]
-        return scv.datasets.pancreas()
-
-    def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
-        """
-        perfoms all preprocessing steps for scRNA data
-        """
-        p = Preprocessor(data, bins, min_counts_genes, n_hvg)
-        # permute for random split into train and val set later
-        p.permute()
-        p.preprocess()
-        return p
-
     def get_gene_encode_decode(self, token_names: list):
         """
         Returns: encoder and decoder functions that map gene names to integer and vise versa
@@ -121,6 +102,7 @@ class Trainer:
             print(f'mlm_prob: {config.mlm_probability}')
             cell_type = config.cell_type
             n_token = config.n_token
+            hvg_flavor = config.hvg_flavor
             ####### preprocess #######
             # load_data
             data = scv.datasets.pancreas(path)
@@ -176,7 +158,7 @@ class Trainer:
             # print(f'testset clusters:\n{data[idx_test_cells].obs.clusters}')
             # print()
             # preprocess
-            p = Preprocessor(data, config.n_bin, self.min_counts_genes, n_token)
+            p = Preprocessor(data, config.n_bin, self.min_counts_genes, n_token, hvg_flavor=hvg_flavor)
             p.permute()
             p.preprocess()
             p.get_mean_number_of_nonZero_bins()

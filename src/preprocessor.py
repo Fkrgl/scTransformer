@@ -17,7 +17,8 @@ class Preprocessor:
                 anndata: AnnData,
                 n_bins: int,
                 min_counts_genes: int = 10,
-                n_hvg: int = 200,
+                 n_hvg: int = 200,
+                hvg_flavor: str = 'seurat'
                 ):
         """
 
@@ -41,6 +42,7 @@ class Preprocessor:
         self.min_counts_genes = min_counts_genes
         self.n_hvg = n_hvg
         self.n_bins = n_bins
+        self.hvg_flavor = hvg_flavor
         self.binned_data = None
         self.mean_non_zero_bins = None
 
@@ -64,7 +66,7 @@ class Preprocessor:
         sc.pp.log1p(self.data)
 
         # get highly varaible genes (hvg)
-        sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True)
+        sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True, flavor=self.hvg_flavor)
 
         # value binning
         # get full data matrix (includes zeros)
