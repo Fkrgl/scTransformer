@@ -163,6 +163,14 @@ class Preprocessor:
         mean_non_zeros = int(np.round(np.mean(non_zeros),decimals=0))
         self.mean_non_zero_bins = mean_non_zeros
 
+    def get_most_frequent_hvg_bins(self):
+        most_freq_hvg_bin = {}
+        for i in range(self.n_hvg):
+            gene_exp = self.binned_data[:, i]
+            gene_exp = gene_exp[gene_exp > 0]
+            most_freq_hvg_bin[i] = Counter(gene_exp).most_common(1)[0][0]
+        return most_freq_hvg_bin
+
 if __name__ == '__main__':
     # load dataset
     anndata = scv.datasets.pancreas()

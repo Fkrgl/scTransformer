@@ -107,8 +107,11 @@ class Trainer:
         p.permute()
         p.preprocess()
         p.get_mean_number_of_nonZero_bins()
+        most_freq_hvg_bins = p.get_most_frequent_hvg_bins()
         tokens = p.get_gene_tokens()
         data = p.binned_data
+        print(np.min(data))
+        print(np.max(data))
         # split data
         print(f'number of tokens: {self.n_token}')
         print(f'number of non zero bins: {p.mean_non_zero_bins}')
@@ -133,7 +136,8 @@ class Trainer:
                                  nlayers=self.n_layer,
                                  n_input_bins=self.n_bin,
                                  n_token=n_token,
-                                 nhead=self.n_head)
+                                 nhead=self.n_head,
+                                 most_freq_hvg_bins=most_freq_hvg_bins)
         m = model.to(self.device)
         # print the number of parameters in the model
         print(sum(p.numel() for p in m.parameters()), 'parameters')

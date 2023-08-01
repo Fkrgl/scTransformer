@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -6,6 +8,7 @@ from typing import Optional, Dict
 # encoder layers are based on paper "Attention is all you need"
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmetrics import Accuracy
+import pandas as pd
 
 
 class TransformerModel(nn.Module):
@@ -16,6 +19,7 @@ class TransformerModel(nn.Module):
                  dim_feedforward: int,
                  nlayers: int,
                  n_input_bins: int,
+                 most_freq_hvg_bins,
                  dropout: Optional[float] = None,
                  pad_token: str = "<pad>",
                  pad_value: int = 0,
@@ -36,6 +40,8 @@ class TransformerModel(nn.Module):
         self.activation = "relu"
         self.n_input_bins = n_input_bins
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.most_freq_hvg_bins = most_freq_hvg_bins
+        self.n_token = n_token
 
         # define the gene encoder
         self.encoder = GeneEncoder(n_token, d_model)
@@ -108,9 +114,22 @@ class TransformerModel(nn.Module):
         # each gene embedding gets its own expression value prediction
         mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
         # get only vectors of masked genes
-        masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
-        masked_pred_exp = torch.zeros_like(masked_pred_exp).requires_grad_(True)
-        #print(f'masked_pred_exp: {masked_pred_exp}')
+        #masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
+        ############### 1) predict only zero
+        # masked_pred_exp = torch.zeros_like(masked_pred_exp)
+        # masked_pred_exp[:,0] = 1
+        # masked_pred_exp = masked_pred_exp.requires_grad_(True)
+        ############### 2) predict bin randomly uniform (100 bins with bin values 0 to 99)masked_pred_exp
+        # masked_pred_exp = np.zeros(shape=(masked_pred_exp.shape[0], masked_pred_exp.shape[1]))
+        # rand = np.random.choice(np.arange(self.n_input_bins), size=masked_pred_exp.shape[0])
+        # for i in range(masked_pred_exp.shape[0]):
+        #     masked_pred_exp[i][rand[i]] = 1
+        # masked_pred_exp = torch.tensor(masked_pred_exp, dtype=float).requires_grad_(True)
+        ################ 3) predict most frequent bin
+        masked_pred_exp, masked_label_exp = self.get_masked_exp2(mlm_output, values, key_padding_mask)
+        # print(f'masked_pred_exp: {masked_pred_exp}\n{masked_pred_exp.shape}')
+        # print(f'masked_label_exp: {masked_label_exp}\n{masked_label_exp.shape}')
+        # sys.exit()
         loss = self.loss(masked_pred_exp, masked_label_exp)
         output = loss
         # get reconstructed profiles
@@ -123,6 +142,75 @@ class TransformerModel(nn.Module):
             output = (loss, acc_value)
 
         return output
+
+    def get_masked_exp2(self, mlm_output, values, key_padding_mask):
+        """
+        calculates the loss per cell using only the masked positions
+        Args:
+            mlm_output: predicted expr (batch, seq_len)
+            key_padding_mask: gene expression mask: (batch, seq_len)
+
+        Returns:
+            predicted and ground truth expression of masked genes
+        """
+        masked_pred_exp = []
+        masked_label_exp = torch.Tensor([]).to(self.device)
+        Gen_idx = []
+        targets = []
+        predictions = []
+        ###### braucen wir diesen loop ueberhaupt noch?!
+        for i in range(mlm_output.shape[0]):
+            pred = mlm_output[i]
+            value = values[i]
+            mask = key_padding_mask[i]
+            true_bins = value[mask]
+            idx = np.arange(self.n_token)
+            # print(f'{masked_pred}\n{masked_pred.shape}')
+            # print(f'{true_bins}\n{true_bins.shape}')
+
+            idx_masked = idx[mask]
+            # print(mask)
+            # print(f'indices of masked positions:\n{idx_masked}')
+            for j in range(len(true_bins)):
+                # print(f'j={j}')
+                masked_pred = torch.tensor(np.zeros(shape=self.n_input_bins))
+                masked_pred[0] = 1
+                # print(f'masked_pred:\n{masked_pred}')
+                pred_val = 0
+                true_val = true_bins[j]
+                # print(f'true expression bin: {true_val}')
+                if true_val != 0:
+                    # print(f'correct masked_pred..')
+                    masked_pred[0] = 0
+                    pred_val = self.most_freq_hvg_bins[idx_masked[j]]
+                    # print(f'Gen with index: {idx_masked[j]} is assigned to its most frequent bin {pred_val}')
+                    masked_pred[pred_val] = 1
+                    # print(f'test: {np.where(masked_pred == 1)}')
+                    # print(f'masked_pred:\n{masked_pred}')
+                #     print(f'corrected masked_pred:\n{masked_pred}')
+                # print(self.most_freq_hvg_bins)
+                Gen_idx.append(idx_masked[j])
+                targets.append(true_val.item())
+                predictions.append(pred_val)
+                # print(f'Gen {idx_masked[j]}: {true_val} -> {pred_val}')
+                masked_pred_exp.append(masked_pred.to(self.device))
+
+            masked_label_exp = torch.cat((masked_label_exp, true_bins.to(self.device)))
+            # print(f'masked_pred= {masked_pred}')
+        masked_pred_exp = torch.vstack(masked_pred_exp)
+
+        # print(f'{masked_label_exp.shape}')
+        # print(f'{masked_pred_exp.shape}')
+        # print()
+        # print(mlm_output)
+        # for i in range(10):
+        #     print(f'label: {masked_label_exp[i]}\n prediction:\n {masked_pred_exp[i]}')
+        #     print(f'values: {values[i]}')
+        #     print(f'values[mask] : \n{values[i][key_padding_mask[i]]}')
+        # save_frame = pd.DataFrame({'gen_idx' : Gen_idx, 'predictions' : predictions, 'targets': targets})
+        # print(save_frame)
+        # save_frame.to_csv('acc_most_frequent.csv', index=False)
+        return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
     def get_masked_exp(self, mlm_output, values, key_padding_mask):
         """
@@ -137,18 +225,32 @@ class TransformerModel(nn.Module):
         masked_pred_exp = torch.Tensor([]).to(self.device)
         masked_label_exp = torch.Tensor([]).to(self.device)
         ###### braucen wir diesen loop ueberhaupt noch?!
+        # Gen_idx = []
+        # targets = []
+        # predictions = []
+        idx = np.arange(self.n_token)
         for i in range(mlm_output.shape[0]):
             pred = mlm_output[i]
             value = values[i]
             mask = key_padding_mask[i]
             masked_pred = pred[mask]
             true_bins = value[mask]
+            # idx_masked = idx[mask]
+            # for j in range(len(true_bins)):
+            #     Gen_idx.append(idx_masked[j])
+            #     targets.append(true_bins[j].item())
+            #     predictions.append(masked_pred[j].detach().numpy())
+
+            #print(f'masked_pred= {masked_pred}')
             # print(f'{masked_pred}\n{masked_pred.shape}')
             # print(f'{true_bins}\n{true_bins.shape}')
             masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)), dim=0)
             masked_label_exp = torch.cat((masked_label_exp, true_bins.to(self.device)))
         # print(f'{masked_label_exp}\n{masked_label_exp.shape}')
         # print(f'{masked_pred_exp}\n{masked_pred_exp.shape}')
+        # save_frame = pd.DataFrame({'gen_idx' : Gen_idx, 'predictions' : predictions, 'targets': targets})
+        # print(save_frame)
+        # save_frame.to_csv('acc_normal.csv', index=False)
         return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
     def generate(self,
