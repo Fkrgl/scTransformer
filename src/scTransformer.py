@@ -1,3 +1,5 @@
+import sys
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -87,6 +89,32 @@ class TransformerModel(nn.Module):
 
         return output.to(self.device)  # (batch, seq_len, embsize)
 
+    def randomize_masked_positions(self, values, key_padding_mask):
+        '''
+        each masked value (TRUE in key_padding_mask) is assigned a random value. Unmasked values stay the same
+        Args:
+            values:
+            key_padding_mask:
+
+        Returns:
+
+        '''
+        values = values.cpu()
+        values = values.detach().numpy()
+        key_padding_mask = key_padding_mask.cpu()
+        key_padding_mask = key_padding_mask.detach().numpy()
+        # i = 5
+        # print(f'original value:\n{values[i]}')
+        random_val = np.random.choice(np.arange(self.n_input_bins), size=values.shape)
+        values[key_padding_mask] = random_val[key_padding_mask]
+        # print(f'mask:\n{key_padding_mask[i]}')
+        # print(f'modified value:\n{values[i]}')
+        # print(f'random:\n{random_val[i]}')
+        values = torch.tensor(values).to(self.device)
+
+        return values
+
+
     def forward(self,
                 src: Tensor,
                 values: Tensor,
@@ -103,7 +131,9 @@ class TransformerModel(nn.Module):
         Returns:
             Tensor of expression prediction
         """
-
+        # if test samples are processed, randomize masked positions
+        if get_accuracy:
+            values = self.randomize_masked_positions(values, key_padding_mask)
         transformer_output = self._encode(src, values, key_padding_mask)
         # each gene embedding gets its own expression value prediction
         mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)

@@ -7,6 +7,7 @@ import numpy as np
 from DataSet import scDataSet
 import wandb
 from typing import Tuple
+import sys
 import matplotlib.pyplot as plt
 
 
@@ -163,26 +164,20 @@ class Trainer:
             data = scv.datasets.pancreas(path)
             # split according to cell cluster
             data.obs.reset_index(inplace=True)
-            idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
-            idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
-            # randomly sample from cell idx to get constant train and test set size for each run
-            min_test_set = 481
-            max_test_set = 642
-            n_train_set = len(data) - max_test_set
-            idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
-            idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
-            # # check with plot
-            # umap = data.obsm['X_umap']
-            # plt.scatter(umap[idx_test_cells, 0], umap[idx_test_cells, 1], c='red', alpha=0.2)
-            # plt.scatter(umap[idx_train_cells, 0], umap[idx_train_cells, 1], c='blue', alpha=0.1)
-            # plt.show()
+            n_train = int(0.9 * len(data))
+            n_test = int(len(data) - n_train)
+            idx_all = np.arange(len(data))
+            idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
+            idx_rest = list(set(idx_all) - set(idx_test_cells))
+            idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train, replace=False)
+            # preprocess
             p = Preprocessor(data, self.n_bin, self.min_counts_genes, self.n_token)
             p.preprocess()
             tokens = p.get_gene_tokens()
             data = p.binned_data
             # split data
-            trainset = scDataSet(data[idx_train_cells], config.mlm_probability)
-            testset = scDataSet(data[idx_test_cells], config.mlm_probability)
+            trainset = scDataSet(data[idx_train_cells], config.mlm_probability, self.n_token)
+            testset = scDataSet(data[idx_test_cells], config.mlm_probability, self.n_token)
             print(f'length trainset: {len(trainset)}')
             print(f'length testset: {len(testset)}')
             # encode gene names
@@ -206,9 +201,6 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
-            test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
-            print(f'epoch: {0}/{self.n_epoch}, test error = {test_loss:.4f}'
-                  f', accuracy = {test_accuracy:.4f}')
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
                     # evaluate the loss
@@ -217,7 +209,6 @@ class Trainer:
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
-
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
                 test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
@@ -225,14 +216,14 @@ class Trainer:
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(loss, test_loss, test_accuracy, epoch)
                 # if last epoch is reached, get validation reconstructions and perform Classifier2SampleTest
-                if epoch == self.n_epoch - 1:
-                    reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
-                    val_input = testset[:][0]
-                    print(reconstructed_profiles.shape)
-                    print(val_input.shape)
-                    torch.save(reconstructed_profiles, '../data/reconstructed_profiles_.pt')
-                    torch.save(val_input, '../data/val_input_50_epochs.pt')
-                    torch.save(masks, '../data/masks_50_epochs.pt')
+                # if epoch == self.n_epoch - 1:
+                #     reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
+                #     val_input = testset[:][0]
+                #     print(reconstructed_profiles.shape)
+                #     print(val_input.shape)
+                #     torch.save(reconstructed_profiles, '../data/reconstructed_profiles_.pt')
+                #     torch.save(val_input, '../data/val_input_50_epochs.pt')
+                #     torch.save(masks, '../data/masks_50_epochs.pt')
 
     def get_test_loss(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> float:
         """
@@ -289,7 +280,7 @@ wandb_project = 'dummy_sweep'
 # hyperparameters
 batch_size = 10
 n_token = 200
-n_epoch = 1
+n_epoch = 10
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -298,10 +289,10 @@ n_embd = 10
 dim_feedforward = 100
 n_head = 2
 n_layer = 2
-n_bin = 10
+n_bin = 100
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = 0.15
+mlm_probability = 1
 seed = 1234
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 
