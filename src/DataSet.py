@@ -71,14 +71,16 @@ class scDataSet(Dataset):
             idx_zero = idx[sample == 0]
             idx_non_zero = idx[sample != 0]
             # randomly select genes to be masked
-            idx_masked_zero = np.random.choice(idx, 1, replace=False)
+            idx_masked_zero = np.random.choice(idx_non_zero, 1, replace=False)
             # mask
             mask[idx_masked_zero] = True
         elif self.n_non_zero_bins == 100:
             # set all genes to masked and only unmask one gene
             mask = np.ones(self.n_tokens, dtype=bool)
             idx = np.arange(self.n_tokens)
-            idx_unmask = np.random.choice(idx, 1, replace=False)
+            idx_zero = idx[sample == 0]
+            idx_non_zero = idx[sample != 0]
+            idx_unmask = np.random.choice(idx_non_zero, 1, replace=False)
             mask[idx_unmask] = False
 
         else:
