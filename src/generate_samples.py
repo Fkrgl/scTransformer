@@ -8,6 +8,7 @@ import numpy as np
 from DataSet import scDataSet
 from umap import UMAP
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import sys
 
 # model parameters
@@ -98,7 +99,8 @@ data_preprocessed = np.vstack(data_preprocessed)
 expression_profiles = np.vstack(data_generated)
 print(f'shape data_preprocessed: {data_preprocessed.shape}')
 print(f'shape expression_profiles: {expression_profiles.shape}')
-
+# np.save('../data/pancreas_binned_original.npy', data_preprocessed)
+# np.save('../data/pancreas_binned_generated.npy', expression_profiles)
 
 # data_preprocessed = []
 # for binned_data in data:
@@ -138,8 +140,9 @@ def generate_color_vector(anndata):
     categories = anndata.obs.clusters.unique()
     cmap = plt.cm.get_cmap('hsv', len(categories) + 1)
     cluster_to_color = {categories[i]: cmap(i) for i in range(len(categories))}
+    cluster_to_color['Alpha'] = 'yellow'
     color = [cluster_to_color[clu] for clu in clusters]
-    return color
+    return cluster_to_color, color
 
 # create umap
 umap_2d = UMAP(n_components=2, init='random', random_state=0)
@@ -160,7 +163,11 @@ ax[0].legend()
 fig.suptitle(f'umap of binned expression profiles')
 fig.supxlabel('umap 1')
 fig.supylabel('umap 2')
-color = generate_color_vector(scv.datasets.pancreas(dataset_path))
+cluster_to_color, color = generate_color_vector(scv.datasets.pancreas(dataset_path))
+patches = []
+for key, value in cluster_to_color.items():
+    patches.append(mpatches.Patch(color=value, label=key))
 print(proj_2d.shape)
 ax[1].scatter(proj_2d[:n_pancreas, 0], proj_2d[:n_pancreas, 1], c=color, alpha=.5)
+ax[1].legend(handles=patches)
 plt.show()
