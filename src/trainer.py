@@ -202,10 +202,10 @@ class Trainer:
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             for epoch in range(self.n_epoch):
-                for i, (x_val, mask) in enumerate(train_loader):
+                for i, (x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
-                    loss = model(x_src, x_val, mask)
+                    loss = model(x_src, x_val, attn_mask, mask)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
@@ -231,9 +231,9 @@ class Trainer:
         """
         model.eval()
         losses = []
-        for i, (x_val, mask) in enumerate(test_loader):
+        for i, (x_val, attn_mask, mask) in enumerate(test_loader):
             # evaluate the loss
-            losses.append(model(x_src, x_val, mask).item())
+            losses.append(model(x_src, x_val, attn_mask, mask).item())
         model.train()
         return np.mean(losses)
 
@@ -245,9 +245,9 @@ class Trainer:
         model.eval()
         acc = []
         loss = []
-        for i, (x_val, mask) in enumerate(test_loader):
+        for i, (x_val, attn_mask, mask) in enumerate(test_loader):
             # evaluate the loss
-            l, a = model(x_src, x_val, mask, get_accuracy=True)
+            l, a = model(x_src, x_val, attn_mask, mask, get_accuracy=True)
             loss.append(l.item())
             acc.append(a.item())
         model.train()

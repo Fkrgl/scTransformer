@@ -23,7 +23,11 @@ class scDataSet(Dataset):
         sample = torch.tensor(self.data[idx])
         # generate mask for sample
         mask = self.get_balanced_mask(sample)
-        return sample, mask
+        attn_mask = self.create_attention_mask(mask)
+        # print(f'padding mask: \n{mask}')
+        # print(f'attn_mask mask: \n{attn_mask}')
+        # print()
+        return sample, attn_mask, mask
 
     # def get_prob_mask(self, expressions: torch.Tensor) -> torch.Tensor:
     #     """
@@ -80,7 +84,7 @@ class scDataSet(Dataset):
             idx = np.arange(self.n_tokens)
             idx_zero = idx[sample == 0]
             idx_non_zero = idx[sample != 0]
-            idx_unmask = np.random.choice(idx_non_zero, 1, replace=False)
+            idx_unmask = np.random.choice(idx_non_zero, 1, replace=False) #idx_non_zero
             mask[idx_unmask] = False
 
         else:
@@ -116,6 +120,15 @@ class scDataSet(Dataset):
             mask[idx_masked_zero] = True
             mask[idx_masked_non_zero] = True
         return mask
+
+    def create_attention_mask(self, mask):
+        '''
+        this function takes as input a padding mask (seq_len) and outputs a attention mask (seq_len x seq_len)
+        '''
+        attn_mask = torch.zeros(size=(len(mask), len(mask)))
+        attn_mask[mask, :] = 1
+        attn_mask[:, mask] = 1
+        return attn_mask
 
 
 

@@ -35,6 +35,7 @@ class TransformerModel(nn.Module):
         super().__init__()
         # parameters
         self.d_model = d_model
+        self.nhead = nhead
         self.activation = "relu"
         self.n_input_bins = n_input_bins
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -44,7 +45,7 @@ class TransformerModel(nn.Module):
         self.value_encoder = ValueEncoder(self.n_input_bins, d_model)
         # define the transformer encoder
         encoder_layers = TransformerEncoderLayer(d_model=d_model,
-                                                 nhead=nhead,
+                                                 nhead=self.nhead,
                                                  dim_feedforward=dim_feedforward,
                                                  activation=self.activation,
                                                  batch_first=True,
@@ -68,7 +69,8 @@ class TransformerModel(nn.Module):
     def _encode(self,
                 src: Tensor,
                 values: Tensor,
-                key_padding_mask: Tensor,
+                attn_mask: Tensor,
+                key_padding_mask: Tensor
                 ) -> Tensor:
         """
 
@@ -85,9 +87,25 @@ class TransformerModel(nn.Module):
         values = self.value_encoder(values)
         # combined embedding (broadcasting)
         total_embedding = src + values
-        output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)
+        # before the attn_mask can be fed into the encoder it has to transformed to shape (N*n_head, L, S):
+        # N = batch size, n_head =n umber of heads, L = length of source sequence, S = length of target sequence
+        attn_mask = torch.vstack([attn_mask] * self.nhead)
+        output = self.transformer_encoder(total_embedding, mask=attn_mask) # , src_key_padding_mask=key_padding_mask
 
         return output.to(self.device)  # (batch, seq_len, embsize)
+
+    def randomize_maked_position_encodeings(self, output, key_padding_mask):
+        """
+        function takes the output of the transformer and randomizes the encodeings for all masked genes
+        """
+        # print(f'output:\n{output}')
+        rand = torch.FloatTensor(output.shape[0], output.shape[1], output.shape[2]).uniform_(-5, 5)
+        # print(f'rand\n{rand}')
+        output[key_padding_mask] = rand[key_padding_mask]
+        # print(f'mask\n{key_padding_mask}')
+        # print(f'new output\n{output}')
+        return output
+
 
     def randomize_masked_positions(self, values, key_padding_mask):
         '''
@@ -142,6 +160,7 @@ class TransformerModel(nn.Module):
     def forward(self,
                 src: Tensor,
                 values: Tensor,
+                attn_mask: Tensor,
                 key_padding_mask: Tensor,
                 get_reconstruction: bool = False,
                 get_accuracy: bool = False):
@@ -156,9 +175,11 @@ class TransformerModel(nn.Module):
             Tensor of expression prediction
         """
         # if test samples are processed, randomize masked positions
+        # if get_accuracy:
+        #     values = self.randomize_masked_positions(values, key_padding_mask)
+        transformer_output = self._encode(src, values, attn_mask, key_padding_mask)
         if get_accuracy:
-            values = self.zero_masked_positions(values, key_padding_mask)
-        transformer_output = self._encode(src, values, key_padding_mask)
+            transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
         # each gene embedding gets its own expression value prediction
         mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
         # get only vectors of masked genes
