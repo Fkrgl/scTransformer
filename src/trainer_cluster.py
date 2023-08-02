@@ -269,7 +269,7 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
     n_token = 200
-    n_epoch = 400
+    n_epoch = 200
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
