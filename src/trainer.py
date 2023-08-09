@@ -74,23 +74,6 @@ class Trainer:
         self.test_mode = test_mode
 
     # +---------------------------+ prepare the data +---------------------------+
-    def load_data(self):
-        """
-        loads the data set
-        """
-        if self.subset:
-            return scv.datasets.pancreas()[:self.subset]
-        return scv.datasets.pancreas()
-
-    def preprocess_data(self, data, bins, min_counts_genes, n_hvg):
-        """
-        perfoms all preprocessing steps for scRNA data
-        """
-        p = Preprocessor(data, bins, min_counts_genes, n_hvg)
-        # permute for random split into train and val set later
-        p.permute()
-        p.preprocess()
-        return p
 
     def get_gene_encode_decode(self, token_names: list):
         """
@@ -105,49 +88,6 @@ class Trainer:
         decode = lambda index_list: [id_to_token[idx] for idx in
                                      index_list]  # decoder: take a list of integers, output a string
         return encode, decode
-
-    def split_data(self, p: Preprocessor) -> tuple:
-        """
-        splits the data set into training and validation data
-        """
-        n = p.binned_data.shape[0]
-        n_train = int(self.split * n)
-        train_data = torch.tensor(p.binned_data[:n_train])
-        val_data = torch.tensor(p.binned_data[n_train:])
-        return train_data, val_data
-
-    # batch loading
-    def get_batch(self, data: Tensor):
-        """
-        generates a batch by random
-        Args:
-            data (Tensor): either train or validation data set
-
-        Returns:
-            x (Tensor): random subset of data
-        """
-        n = data.shape[0]
-        rand_idx = np.random.randint(low=0, high=n, size=self.batch_size)
-        batch_values = data[rand_idx]
-        return batch_values
-
-    def get_mask(self, expressions: torch.Tensor, mlm_probability: float = 0.15) -> torch.Tensor:
-        """
-        generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
-        process. More information here:
-        https://github.com/pytorch/pytorch/blob/11f1014c05b902d3eef0fe01a7c432f818c2bdfe/torch/nn/functional.py#L3892
-        Args:
-            expressions: expression matrix (batch, seq_length)
-            mlm_probability: probability fo a gene to get masked
-
-        Returns:
-            Boolean Tensor of shape (batch, n_token) with True where genes should be masked
-
-        """
-        shape = expressions.shape
-        probability_matrix = torch.full(shape, mlm_probability)
-        mask = torch.bernoulli(probability_matrix).bool()
-        return mask
 
     def train(self, path: str, config: dict, wandb_project: str) -> None:
         """
@@ -279,8 +219,8 @@ wandb_project = 'dummy_sweep'
 
 # hyperparameters
 batch_size = 10
-n_token = 200
-n_epoch = 10
+n_token = 10
+n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
 eval_iters = 10
@@ -292,7 +232,7 @@ n_layer = 2
 n_bin = 100
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = 1
+mlm_probability = 2
 seed = 1234
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 

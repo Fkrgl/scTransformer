@@ -201,10 +201,10 @@ class Trainer:
             check_instances = [20, 100, 199]
             # training loop
             for epoch in range(self.n_epoch):
-                for i, (x_val, mask) in enumerate(train_loader):
+                for i, (x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
-                    loss = model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device))
+                    loss = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device), mask.to(self.device))
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
@@ -234,9 +234,9 @@ class Trainer:
         model.eval()
         acc = []
         loss = []
-        for i, (x_val, mask) in enumerate(test_loader):
+        for i, (x_val, attn_mask, mask) in enumerate(test_loader):
             # evaluate the loss
-            l, a = model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device), get_accuracy=True)
+            l, a = model(x_src.to(self.device), x_val.to(self.device) ,attn_mask.to(self.device), mask.to(self.device), get_accuracy=True)
             loss.append(l.item())
             acc.append(a.item())
         model.train()

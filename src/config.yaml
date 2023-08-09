@@ -5,10 +5,12 @@ metric:
   goal: minimize
 parameters:
     mlm_probability:
-        values: [1, 22, 50, 100]
+        value: 100
     n_bin:
         value : 100
     batch_size:
         value: 256
     cell_type:
         value: 'None'
+    mask_type:
+        value: 'attn_mask'

@@ -70,7 +70,8 @@ class TransformerModel(nn.Module):
                 src: Tensor,
                 values: Tensor,
                 attn_mask: Tensor,
-                key_padding_mask: Tensor
+                key_padding_mask: Tensor,
+                get_accuracy: bool
                 ) -> Tensor:
         """
 
@@ -85,12 +86,15 @@ class TransformerModel(nn.Module):
         # gene embedding
         src = self.encoder(src)
         values = self.value_encoder(values)
+        # for test runs, randomize all value embeddings of masked genes
+        # if get_accuracy:
+        #     values = self.randomize_maked_position_encodeings(values, key_padding_mask)
         # combined embedding (broadcasting)
         total_embedding = src + values
         # before the attn_mask can be fed into the encoder it has to transformed to shape (N*n_head, L, S):
         # N = batch size, n_head =n umber of heads, L = length of source sequence, S = length of target sequence
         attn_mask = torch.vstack([attn_mask] * self.nhead)
-        output = self.transformer_encoder(total_embedding, mask=attn_mask) # , src_key_padding_mask=key_padding_mask
+        output = self.transformer_encoder(total_embedding, mask=attn_mask)  # , src_key_padding_mask=key_padding_mask
 
         return output.to(self.device)  # (batch, seq_len, embsize)
 
@@ -99,7 +103,7 @@ class TransformerModel(nn.Module):
         function takes the output of the transformer and randomizes the encodeings for all masked genes
         """
         # print(f'output:\n{output}')
-        rand = torch.FloatTensor(output.shape[0], output.shape[1], output.shape[2]).uniform_(-5, 5)
+        rand = torch.FloatTensor(output.shape[0], output.shape[1], output.shape[2]).uniform_(-5, 5).to(self.device)
         # print(f'rand\n{rand}')
         output[key_padding_mask] = rand[key_padding_mask]
         # print(f'mask\n{key_padding_mask}')
@@ -175,11 +179,11 @@ class TransformerModel(nn.Module):
             Tensor of expression prediction
         """
         # if test samples are processed, randomize masked positions
-        # if get_accuracy:
-        #     values = self.randomize_masked_positions(values, key_padding_mask)
-        transformer_output = self._encode(src, values, attn_mask, key_padding_mask)
         if get_accuracy:
-            transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
+            values = self.randomize_masked_positions(values, key_padding_mask)
+        transformer_output = self._encode(src, values, attn_mask, key_padding_mask, get_accuracy)
+        # if get_accuracy:
+        #     transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
         # each gene embedding gets its own expression value prediction
         mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
         # get only vectors of masked genes
