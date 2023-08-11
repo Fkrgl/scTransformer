@@ -68,6 +68,7 @@ class TransformerModel(nn.Module):
                 src: Tensor,
                 values: Tensor,
                 key_padding_mask: Tensor,
+                use_val_emb: bool = True
                 ) -> Tensor:
         """
 
@@ -82,8 +83,11 @@ class TransformerModel(nn.Module):
         # gene embedding
         src = self.encoder(src)
         values = self.value_encoder(values)
-        # combined embedding (broadcasting)
-        total_embedding = src + values
+        if use_val_emb:
+            # combined embedding (broadcasting)
+            total_embedding = src + values
+        else:
+            total_embedding = src
         output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)
 
         return output.to(self.device)  # (batch, seq_len, embsize)
@@ -153,10 +157,12 @@ class TransformerModel(nn.Module):
     def generate(self,
                  src: Tensor,
                  values: Tensor,
-                 bins):
+                 bins,
+                 use_val_emb: bool = True
+                 ):
         n_gen = self.n_token
         # embedd genes of target cell and feed in transformer encoder
-        encoder_output = self._encode(src, values, None)
+        encoder_output = self._encode(src, values, None, use_val_emb)
         # decode transformer encoded gene vectors
         decoder_output = self.decoder(encoder_output)
         # print(f'decoder_output_shape: {decoder_output.shape}')

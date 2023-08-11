@@ -42,7 +42,7 @@ model = TransformerModel(d_model=d_model,
                          n_input_bins=n_input_bins,
                          n_token=n_token,
                          nhead=nhead)
-model.load_state_dict(torch.load('../data/model_1.pth', map_location=torch.device('cpu')))
+model.load_state_dict(torch.load('../data/model_3.pth', map_location=torch.device('cpu')))
 model.eval()
 
 model2 = TransformerModel(d_model=d_model,
@@ -72,15 +72,95 @@ dataset = scDataSet(data, p.mean_non_zero_bins, n_token)
 # encode gene names
 n_token = len(tokens)
 encode, decode = get_gene_encode_decode(tokens)
+tok = np.array(tokens)
+print(np.where(tok == 'Sst'))
+print(tok)
 x_src = torch.tensor(encode(tokens))
-
+print(x_src)
 
 # generate
+def generate_samples(p, dataset, x_src, model, n_samples, use_val_emb = True):
+    '''
+    samples from the transfomer by only using the src embedding of the genes but not the actual expression values
+    '''
+    val, _ = dataset.__getitem__(3012)
+    val = torch.zeros_like(val)
+    val[71] = 99
+    val[22] = 13
+    val[106] = 19
+    bin_to_expression = p.bin_to_expression
+    to_expression = lambda bins: [bin_to_expression[b] for b in bins]
+    bins = np.arange(100)
+    # generate data
+    data_generated = []
+    for i in range(n_samples):
+        sample_profile = model.generate(x_src, val, bins, use_val_emb)
+        expression = to_expression(sample_profile)
+        data_generated.append(expression)
+    expression_profiles = np.vstack(data_generated)
+    return expression_profiles
+
+def get_exp_profiles(p, dataset):
+    '''
+    translates bin values from expression value of a dataset into continous expression values
+    '''
+    bin_to_expression = p.bin_to_expression
+    to_expression = lambda bins: [bin_to_expression[b] for b in bins]
+    data_preprocessed = []
+    for i in range(len(dataset)):
+        sample, _ = dataset.__getitem__(i)
+        data_preprocessed.append(to_expression(sample.detach().numpy()))
+
+    data_preprocessed = np.vstack(data_preprocessed)
+    return data_preprocessed
+
+def generate_color_vector(anndata):
+    clusters = anndata.obs.clusters
+    categories = anndata.obs.clusters.unique()
+    cmap = plt.cm.get_cmap('hsv', len(categories) + 1)
+    cluster_to_color = {categories[i]: cmap(i) for i in range(len(categories))}
+    cluster_to_color['Alpha'] = 'yellow'
+    color = [cluster_to_color[clu] for clu in clusters]
+    return cluster_to_color, color
+
+def plot_UMAP(generted_expression_profiles, src_expression_profiles):
+    umap_2d = UMAP(n_components=2, init='random', random_state=0)
+    src_expression_profiles = np.round(src_expression_profiles, decimals=5)
+    proj_2d = umap_2d.fit_transform(np.vstack([src_expression_profiles, generted_expression_profiles]))
+    n_pancreas = src_expression_profiles.shape[0]
+    print(f'n_pancreas: {n_pancreas}')
+    fig, ax = plt.subplots(1, 2, figsize=(10, 4), sharex=True, sharey=True)
+    ax[0].scatter(proj_2d[:n_pancreas, 0], proj_2d[:n_pancreas, 1], c='blue', alpha=.5, label='data')
+    ax[0].scatter(proj_2d[n_pancreas:, 0], proj_2d[n_pancreas:, 1], c='yellow', alpha=0.5, label='generated')
+    ax[0].legend()
+    # ax[0].scatter(proj_src[0][0], proj_src[0][1], c='green', s=100)
+    fig.suptitle(f'umap of binned expression profiles')
+    fig.supxlabel('umap 1')
+    fig.supylabel('umap 2')
+    cluster_to_color, color = generate_color_vector(scv.datasets.pancreas(dataset_path))
+    patches = []
+    for key, value in cluster_to_color.items():
+        patches.append(mpatches.Patch(color=value, label=key))
+    print(proj_2d.shape)
+    ax[1].scatter(proj_2d[:n_pancreas, 0], proj_2d[:n_pancreas, 1], c=color, alpha=.5)
+    ax[1].legend(handles=patches)
+    plt.show()
+
+# generate samples without value embeddings
+n_samples = 100
+generted_expression_profiles = generate_samples(p, dataset, x_src, model, n_samples, use_val_emb=True)
+src_expression_profiles = get_exp_profiles(p, dataset)
+plot_UMAP(generted_expression_profiles, src_expression_profiles)
+
+sys.exit()
+
 val, _ = dataset.__getitem__(3012)
+val = torch.zeros_like(val)
+print(val)
+
 sample_profile = model2.generate(x_src, val, np.arange(100))
 print(sample_profile)
 # next: translate bins into expression values
-sample_profile = model2.generate(x_src, val, np.arange(100))
 bin_to_expression = p.bin_to_expression
 print(bin_to_expression)
 to_expression = lambda bins: [bin_to_expression[b] for b in bins]
@@ -135,14 +215,6 @@ print(f'shape expression_profiles: {expression_profiles.shape}')
 # plt.ylabel('umap 2')
 # #plt.show()
 # plt.savefig('Umap_generated_amples.png')
-def generate_color_vector(anndata):
-    clusters = anndata.obs.clusters
-    categories = anndata.obs.clusters.unique()
-    cmap = plt.cm.get_cmap('hsv', len(categories) + 1)
-    cluster_to_color = {categories[i]: cmap(i) for i in range(len(categories))}
-    cluster_to_color['Alpha'] = 'yellow'
-    color = [cluster_to_color[clu] for clu in clusters]
-    return cluster_to_color, color
 
 # create umap
 umap_2d = UMAP(n_components=2, init='random', random_state=0)
