@@ -134,6 +134,7 @@ class scDataSet(Dataset):
 
 # path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 # data = scv.datasets.pancreas(path)
+#data = scv.datasets.bonemarrow()
 # p = Preprocessor(data, 100, 10, 200)
 # p.preprocess()
 # tokens = p.get_gene_tokens()

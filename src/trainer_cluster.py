@@ -98,12 +98,12 @@ class Trainer:
         with wandb.init(config=config):
             # load and
             config = wandb.config
-            print(f'mlm_prob: {config.mlm_probability}')
-            print(f'mlm_prob: {config.mlm_probability}')
             cell_type = config.cell_type
             ####### preprocess #######
             # load_data
             data = scv.datasets.pancreas(path)
+            #data = scv.datasets.bonemarrow(path)
+            #data = scv.datasets.pbmc68k()
             min_test_set = 481
             max_test_set = 642
             n_train_set = len(data) - max_test_set
@@ -142,19 +142,6 @@ class Trainer:
                 idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
                 idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
 
-            # check with plot
-            # umap = data.obsm['X_umap']
-            # plt.scatter(umap[idx_test_cells, 0], umap[idx_test_cells, 1], c='red', alpha=0.2, label='cut')
-            # plt.scatter(umap[idx_train_cells, 0], umap[idx_train_cells, 1], c='blue', alpha=0.1, label='uncut')
-            # plt.title(f'{cell_type}')
-            # plt.legend()
-            # file_path = f'../fig/cut_out_{cell_type}.png'
-            # plt.savefig(file_path)
-            # # check split
-            # print(f'trainset clusters:\n{data[idx_train_cells].obs.clusters}')
-            # print()
-            # print(f'testset clusters:\n{data[idx_test_cells].obs.clusters}')
-            # print()
             # preprocess
             p = Preprocessor(data, config.n_bin, self.min_counts_genes, self.n_token)
             p.permute()
@@ -165,8 +152,8 @@ class Trainer:
             # split data
             print(f'number of tokens: {self.n_token}')
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
-            trainset = scDataSet(data[idx_train_cells], config.mlm_probability, self.n_token)
-            testset = scDataSet(data[idx_test_cells], config.mlm_probability, self.n_token)
+            trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, self.n_token)
+            testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, self.n_token)
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -188,17 +175,6 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
-            # generate masks:
-            # masks = []
-            # values = []
-            # for i, (x_val, mask) in enumerate(train_loader):
-            #     masks.append(mask)
-            #     values.append(x_val)
-            # masks = torch.cat(masks, dim=0)
-            # values = torch.cat(values, dim=0)
-            # torch.save(masks, f'../data/test_masks.pt')
-            # torch.save(values, f'../data/test_values.pt')
-            check_instances = [20, 100, 199]
             # training loop
             for epoch in range(self.n_epoch):
                 for i, (x_val, attn_mask, mask) in enumerate(train_loader):
@@ -269,7 +245,7 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
     n_token = 200
-    n_epoch = 400
+    n_epoch = 100
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
@@ -283,7 +259,7 @@ if __name__ == '__main__':
     min_counts_genes = 10
     mlm_probability = None
     seed = 1234
-    dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
 
     # create model
     trainer = Trainer(

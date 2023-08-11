@@ -101,7 +101,8 @@ class Trainer:
             cell_type = config.cell_type
             ####### preprocess #######
             # load_data
-            data = scv.datasets.pancreas(path)
+            #data = scv.datasets.pancreas(path)
+            data = scv.datasets.bonemarrow(path)
             # split according to cell cluster
             data.obs.reset_index(inplace=True)
             n_train = int(0.9 * len(data))
@@ -219,7 +220,7 @@ wandb_project = 'dummy_sweep'
 
 # hyperparameters
 batch_size = 10
-n_token = 10
+n_token = 200
 n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
@@ -232,9 +233,9 @@ n_layer = 2
 n_bin = 100
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = 2
+mlm_probability = 22
 seed = 1234
-dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
+dataset_path = '../data/DentateGyrus/10X43_1.h5ad'
 
 # create model
 trainer = Trainer(

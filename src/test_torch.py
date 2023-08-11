@@ -46,5 +46,3 @@ print(f'attn_mask:\n{attn_mask} ')
 # print(torch.vstack([a,a]))
 
 # a = torch.tensor([[[2,1], [2,2], [3,1]]])
-print(a)
-print(torch.FloatTensor(a.shape[0], a.shape[1]).uniform_(-2, 2))
