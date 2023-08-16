@@ -15,6 +15,6 @@ parameters:
     cell_type:
         value: 'None'
     mask_type:
-        value: 'src_key_padding_mask'
+        value: 'attn_mask'
     randomization:
         values: [True, False]
