@@ -185,17 +185,20 @@ class TransformerModel(nn.Module):
             Tensor of expression prediction
         """
         # if test samples are processed, randomize masked positions
+        print(f'values: {values[0]}')
+        labels = values.clone().to(self.device)
         if not get_accuracy and randomize_masked_positions:
-            values_input = self.randomize_masked_positions(values, key_padding_mask)
-        else:
-            values_input = values
-        transformer_output = self._encode(src, values_input, attn_mask, key_padding_mask, mask_type, get_accuracy)
+            print('randomize')
+            values = self.randomize_masked_positions(values, key_padding_mask)
+        print(f'values: {values[0]}')
+        print(f'labels: {labels[0]}')
+        transformer_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # if get_accuracy:
         #     transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
         # each gene embedding gets its own expression value prediction
         mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
         # get only vectors of masked genes
-        masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, values, key_padding_mask)
+        masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, labels, key_padding_mask)
         loss = self.loss(masked_pred_exp, masked_label_exp)
         output = loss
         # get reconstructed profiles
@@ -221,17 +224,18 @@ class TransformerModel(nn.Module):
         """
         masked_pred_exp = torch.Tensor([]).to(self.device)
         masked_label_exp = torch.Tensor([]).to(self.device)
-
+        print('get masked expressions')
         ###### braucen wir diesen loop ueberhaupt noch?!
         for i in range(mlm_output.shape[0]):
             pred = mlm_output[i]
             value = values[i]
             mask = key_padding_mask[i]
-            print(mask)
             masked_pred = pred[mask]
             true_bins = value[mask]
             masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)), dim=0)
             masked_label_exp = torch.cat((masked_label_exp, true_bins.to(self.device)))
+        print(f'masked_label_exp[0]:\n{masked_label_exp}')
+        print(f'masked_pred_exp[0]:\n{masked_pred_exp}')
         return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
     def generate(self,

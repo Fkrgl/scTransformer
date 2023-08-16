@@ -150,7 +150,7 @@ class Trainer:
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
                     # attn_mask = attn_mask[0]
-                    loss = model(x_src, x_val, attn_mask, mask, self.mask_type)
+                    loss = model(x_src, x_val, attn_mask, mask, self.mask_type, randomize_masked_positions=config.randomization)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
@@ -223,7 +223,7 @@ class Trainer:
 wandb_project = 'dummy_sweep'
 
 # hyperparameters
-batch_size = 1000
+batch_size = 1
 n_token = 25
 n_epoch = 1
 eval_interval = 100
@@ -239,7 +239,7 @@ dropout = 0.5
 min_counts_genes = 10
 mlm_probability = 3
 seed = 1234
-dataset_path = '../data/DentateGyrus/10X43_1.h5ad'
+dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 mask_type = 'src_key_padding_mask'
 
 # create model
@@ -287,7 +287,8 @@ config = dict(
     seed=seed,
     dataset=dataset_path,
     cell_type=None,
-    mask_type=mask_type
+    mask_type=mask_type,
+    randomization=True
 )
 # start training
 trainer.train(dataset_path, config, wandb_project)

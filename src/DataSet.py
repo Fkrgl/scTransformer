@@ -48,7 +48,6 @@ class scDataSet(Dataset):
     #     return mask
 
     def get_balanced_mask(self, sample):
-        print(sample)
         if self.n_non_zero_bins == 1:
             mask = np.zeros(self.n_tokens, dtype=bool)
             n_non_zeros = np.count_nonzero(sample)
@@ -144,7 +143,6 @@ class scDataSet(Dataset):
             # mask
             mask[idx_masked_zero] = True
             mask[idx_masked_non_zero] = True
-            print(sample[mask])
         return mask
 
     def create_attention_mask(self, mask):

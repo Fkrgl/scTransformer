@@ -179,17 +179,19 @@ class Trainer:
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             # training loop
             for epoch in range(config.n_epoch):
+                print('train..')
                 for i, (x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
                     loss = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device),
-                                 mask.to(self.device), config.mask_type)
+                                 mask.to(self.device), config.mask_type, randomize_masked_positions=config.randomization)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
+                print('test..')
                 test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
                                                                            , config.randomization, config.mask_type)
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
@@ -228,8 +230,6 @@ class Trainer:
                          mask_type, get_accuracy=True, randomize_masked_positions=randomize_masked_positions)
             loss.append(l.item())
             acc.append(a.item())
-            if i == 5:
-                sys.exit()
         model.train()
         return (float(np.mean(loss)), float(np.mean(acc)))
 
@@ -261,7 +261,7 @@ class Trainer:
 if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
-    n_token = 200
+    n_token = 25
     n_epoch = 150
     eval_interval = 100
     learning_rate = 3e-4
