@@ -157,12 +157,13 @@ class TransformerModel(nn.Module):
     def generate(self,
                  src: Tensor,
                  values: Tensor,
+                 key_padding_mask: Tensor,
                  bins,
                  use_val_emb: bool = True
                  ):
         n_gen = self.n_token
         # embedd genes of target cell and feed in transformer encoder
-        encoder_output = self._encode(src, values, None, use_val_emb)
+        encoder_output = self._encode(src, values, key_padding_mask, use_val_emb)
         # decode transformer encoded gene vectors
         decoder_output = self.decoder(encoder_output)
         # print(f'decoder_output_shape: {decoder_output.shape}')
