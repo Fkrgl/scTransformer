@@ -71,6 +71,7 @@ class TransformerModel(nn.Module):
                 values: Tensor,
                 attn_mask: Tensor,
                 key_padding_mask: Tensor,
+                mask_type: str,
                 get_accuracy: bool
                 ) -> Tensor:
         """
@@ -91,10 +92,15 @@ class TransformerModel(nn.Module):
         #     values = self.randomize_maked_position_encodeings(values, key_padding_mask)
         # combined embedding (broadcasting)
         total_embedding = src + values
-        # before the attn_mask can be fed into the encoder it has to transformed to shape (N*n_head, L, S):
-        # N = batch size, n_head =n umber of heads, L = length of source sequence, S = length of target sequence
-        attn_mask = torch.vstack([attn_mask] * self.nhead)
-        output = self.transformer_encoder(total_embedding, mask=attn_mask)  # , src_key_padding_mask=key_padding_mask
+        if mask_type == 'src_key_padding_mask':
+            output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)  # , mask=attn_mask
+        elif mask_type == 'attn_mask':
+            # before the attn_mask can be fed into the encoder it has to transformed to shape (N*n_head, L, S):
+            # N = batch size, n_head =n umber of heads, L = length of source sequence, S = length of target sequence
+            attn_mask = torch.vstack([attn_mask] * self.nhead)
+            output = self.transformer_encoder(total_embedding, mask=attn_mask)
+        elif mask_type == 'None':
+            output = self.transformer_encoder(total_embedding)
 
         return output.to(self.device)  # (batch, seq_len, embsize)
 
@@ -129,9 +135,6 @@ class TransformerModel(nn.Module):
         # print(f'original value:\n{values[i]}')
         random_val = np.random.choice(np.arange(self.n_input_bins), size=values.shape)
         values[key_padding_mask] = random_val[key_padding_mask]
-        # print(f'mask:\n{key_padding_mask[i]}')
-        # print(f'modified value:\n{values[i]}')
-        # print(f'random:\n{random_val[i]}')
         values = torch.tensor(values).to(self.device)
 
         return values
@@ -166,8 +169,11 @@ class TransformerModel(nn.Module):
                 values: Tensor,
                 attn_mask: Tensor,
                 key_padding_mask: Tensor,
+                mask_type: str,
                 get_reconstruction: bool = False,
-                get_accuracy: bool = False):
+                get_accuracy: bool = False,
+                randomize_masked_positions: bool = False
+                ):
         """
 
         Args:
@@ -179,9 +185,11 @@ class TransformerModel(nn.Module):
             Tensor of expression prediction
         """
         # if test samples are processed, randomize masked positions
-        if get_accuracy:
-            values = self.randomize_masked_positions(values, key_padding_mask)
-        transformer_output = self._encode(src, values, attn_mask, key_padding_mask, get_accuracy)
+        if not get_accuracy and randomize_masked_positions:
+            values_input = self.randomize_masked_positions(values, key_padding_mask)
+        else:
+            values_input = values
+        transformer_output = self._encode(src, values_input, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # if get_accuracy:
         #     transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
         # each gene embedding gets its own expression value prediction
@@ -205,7 +213,7 @@ class TransformerModel(nn.Module):
         """
         calculates the loss per cell using only the masked positions
         Args:
-            mlm_output: predicted expr (batch, seq_len)
+            mlm_output: predicted expr (batch, seq_len, n_bin)
             key_padding_mask: gene expression mask: (batch, seq_len)
 
         Returns:
@@ -213,19 +221,17 @@ class TransformerModel(nn.Module):
         """
         masked_pred_exp = torch.Tensor([]).to(self.device)
         masked_label_exp = torch.Tensor([]).to(self.device)
+
         ###### braucen wir diesen loop ueberhaupt noch?!
         for i in range(mlm_output.shape[0]):
             pred = mlm_output[i]
             value = values[i]
             mask = key_padding_mask[i]
+            print(mask)
             masked_pred = pred[mask]
             true_bins = value[mask]
-            # print(f'{masked_pred}\n{masked_pred.shape}')
-            # print(f'{true_bins}\n{true_bins.shape}')
             masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)), dim=0)
             masked_label_exp = torch.cat((masked_label_exp, true_bins.to(self.device)))
-        # print(f'{masked_label_exp}\n{masked_label_exp.shape}')
-        # print(f'{masked_pred_exp}\n{masked_pred_exp.shape}')
         return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
     def generate(self,
@@ -241,7 +247,6 @@ class TransformerModel(nn.Module):
         # get softmax
         s = nn.Softmax(dim=0)
         softmax_output = s(decoder_output)
-        print(f'softmax:\n{softmax_output}')
         # sample from softmax
         sample_profile = np.zeros(shape=n_gen)
         for i in range(n_gen):

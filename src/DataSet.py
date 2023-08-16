@@ -48,6 +48,7 @@ class scDataSet(Dataset):
     #     return mask
 
     def get_balanced_mask(self, sample):
+        print(sample)
         if self.n_non_zero_bins == 1:
             mask = np.zeros(self.n_tokens, dtype=bool)
             n_non_zeros = np.count_nonzero(sample)
@@ -84,30 +85,54 @@ class scDataSet(Dataset):
             idx = np.arange(self.n_tokens)
             idx_zero = idx[sample == 0]
             idx_non_zero = idx[sample != 0]
-            idx_unmask = np.random.choice(idx_non_zero, 1, replace=False) #idx_non_zero
+            if len(idx_non_zero) == 0:
+                idx_unmask = np.random.choice(idx, 1, replace=False)  # idx_non_zero
+            else:
+                idx_unmask = np.random.choice(idx_non_zero, 1, replace=False) #idx_non_zero
             mask[idx_unmask] = False
 
         else:
             mask = np.zeros(self.n_tokens, dtype=bool)
             n_non_zeros = np.count_nonzero(sample)
-            # trim n_non_zeros if its exceeds the maximal number of masked genes (=2*self.n_non_zero_bins)
-            if n_non_zeros > 2 * self.n_non_zero_bins:
-                # in this case all masked genes have a non zero bin value
-                n_non_zeros = 2 * self.n_non_zero_bins
-            # print(f'number of non zero bins: {n_non_zeros}')
-            n_zeros = self.n_non_zero_bins
+            n_zeros = len(sample) - n_non_zeros
             # less non zero bins than average
             if n_non_zeros < self.n_non_zero_bins:
                 diff = self.n_non_zero_bins - n_non_zeros
                 # print(f'less non zero genes. diff={diff}')
                 # print(f'n_zeros = {self.n_non_zero_bins} + {diff}')
                 n_zeros = self.n_non_zero_bins + diff
-            # more non-zero bins than average
             elif n_non_zeros > self.n_non_zero_bins:
-                diff = n_non_zeros - self.n_non_zero_bins
+                n_non_zeros = self.n_non_zero_bins
+                n_zeros = self.n_non_zero_bins
+            # more non-zero bins than average
+            elif n_zeros < self.n_non_zero_bins:
+                diff = self.n_non_zero_bins - n_zeros
                 # print(f'more non zero genes. diff={diff}')
                 # print(f'n_zeros = {self.n_non_zero_bins} - {diff}')
-                n_zeros = self.n_non_zero_bins - diff
+                n_non_zeros = self.n_non_zero_bins + diff
+            elif n_non_zeros == self.n_non_zero_bins:
+                n_non_zeros = self.n_non_zero_bins
+                n_zeros = self.n_non_zero_bins
+            #
+            #
+            # # trim n_non_zeros if its exceeds the maximal number of masked genes (=2*self.n_non_zero_bins)
+            # if n_non_zeros > 2 * self.n_non_zero_bins:
+            #     # in this case all masked genes have a non zero bin value
+            #     n_non_zeros = 2 * self.n_non_zero_bins
+            # # print(f'number of non zero bins: {n_non_zeros}')
+            # n_zeros = self.n_non_zero_bins
+            # # less non zero bins than average
+            # if n_non_zeros < self.n_non_zero_bins:
+            #     diff = self.n_non_zero_bins - n_non_zeros
+            #     # print(f'less non zero genes. diff={diff}')
+            #     # print(f'n_zeros = {self.n_non_zero_bins} + {diff}')
+            #     n_zeros = self.n_non_zero_bins + diff
+            # # more non-zero bins than average
+            # elif n_non_zeros > self.n_non_zero_bins:
+            #     diff = n_non_zeros - self.n_non_zero_bins
+            #     # print(f'more non zero genes. diff={diff}')
+            #     # print(f'n_zeros = {self.n_non_zero_bins} - {diff}')
+            #     n_zeros = self.n_non_zero_bins - diff
             # sample indeces
             # print(f'n_zeros={n_zeros}')
             idx = np.arange(self.n_tokens)
@@ -119,6 +144,7 @@ class scDataSet(Dataset):
             # mask
             mask[idx_masked_zero] = True
             mask[idx_masked_non_zero] = True
+            print(sample[mask])
         return mask
 
     def create_attention_mask(self, mask):
@@ -134,17 +160,17 @@ class scDataSet(Dataset):
 
 # path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 # data = scv.datasets.pancreas(path)
-#data = scv.datasets.bonemarrow()
-# p = Preprocessor(data, 100, 10, 200)
+# #data = scv.datasets.bonemarrow()
+# p = Preprocessor(data, 100, 10, 100)
 # p.preprocess()
 # tokens = p.get_gene_tokens()
 # data = p.binned_data
 # p.get_mean_number_of_nonZero_bins()
-# dataset = scDataSet(data, 100, 200)
-# #for i in range(len(data)):
-# sample, mask = dataset.__getitem__(0)
-# print(mask)
-# print(f'size mask={mask.sum()}')
+# dataset = scDataSet(data, 2, 100)
+# for i in range(len(data)):
+#     sample, _, mask = dataset.__getitem__(i)
+#     print(mask)
+#     print(f'size mask={mask.sum()}')
 # trainset, testset = random_split(dataset, [0.9, 0.1])
 # train_loader = DataLoader(trainset, batch_size=10, shuffle=True)
 # test_loader = DataLoader(testset, batch_size=10, shuffle=True)

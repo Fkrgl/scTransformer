@@ -28,6 +28,7 @@ class Trainer:
                  dropout: float,
                  min_counts_genes: int,
                  mlm_probability: int,
+                 mask_type: str,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
                  test_mode: Optional[bool] = False
@@ -66,6 +67,7 @@ class Trainer:
         self.n_bin = n_bin
         self.dropout = dropout
         self.min_counts_genes = min_counts_genes
+        self.mask_type = mask_type
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
         if seed:
             torch.manual_seed(seed)
@@ -119,6 +121,7 @@ class Trainer:
             # split data
             trainset = scDataSet(data[idx_train_cells], config.mlm_probability, self.n_token)
             testset = scDataSet(data[idx_test_cells], config.mlm_probability, self.n_token)
+            print(f'mlm_prob: {trainset.n_non_zero_bins}')
             print(f'length trainset: {len(trainset)}')
             print(f'length testset: {len(testset)}')
             # encode gene names
@@ -146,13 +149,14 @@ class Trainer:
                 for i, (x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
-                    loss = model(x_src, x_val, attn_mask, mask)
+                    # attn_mask = attn_mask[0]
+                    loss = model(x_src, x_val, attn_mask, mask, self.mask_type)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
-                test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
+                test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src, self.mask_type)
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(loss, test_loss, test_accuracy, epoch)
@@ -178,8 +182,8 @@ class Trainer:
         model.train()
         return np.mean(losses)
 
-    def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) \
-            -> Tuple[float, float]:
+    def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor, 
+                                   mask_type: str) -> Tuple[float, float]:
         """
         uses a whole run of the validation set to compute the accuracy
         """
@@ -188,7 +192,7 @@ class Trainer:
         loss = []
         for i, (x_val, attn_mask, mask) in enumerate(test_loader):
             # evaluate the loss
-            l, a = model(x_src, x_val, attn_mask, mask, get_accuracy=True)
+            l, a = model(x_src, x_val, attn_mask, mask, mask_type, get_accuracy=True)
             loss.append(l.item())
             acc.append(a.item())
         model.train()
@@ -219,8 +223,8 @@ class Trainer:
 wandb_project = 'dummy_sweep'
 
 # hyperparameters
-batch_size = 10
-n_token = 200
+batch_size = 1000
+n_token = 25
 n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
@@ -230,12 +234,13 @@ n_embd = 10
 dim_feedforward = 100
 n_head = 2
 n_layer = 2
-n_bin = 100
+n_bin = 20
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = 22
+mlm_probability = 3
 seed = 1234
 dataset_path = '../data/DentateGyrus/10X43_1.h5ad'
+mask_type = 'src_key_padding_mask'
 
 # create model
 trainer = Trainer(
@@ -256,7 +261,8 @@ trainer = Trainer(
     mlm_probability=mlm_probability,
     seed=seed,
     subset=None,
-    test_mode=False
+    test_mode=False,
+    mask_type=mask_type
 )
 
 # set up wandb
@@ -280,7 +286,8 @@ config = dict(
     mlm_probability=mlm_probability,
     seed=seed,
     dataset=dataset_path,
-    cell_type=None
+    cell_type=None,
+    mask_type=mask_type
 )
 # start training
 trainer.train(dataset_path, config, wandb_project)

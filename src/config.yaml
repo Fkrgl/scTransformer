@@ -4,13 +4,17 @@ metric:
   name: test_loss
   goal: minimize
 parameters:
+    n_epoch:
+        value: 100
     mlm_probability:
         value: 22
     n_bin:
-        value : 100
+        value: 100
     batch_size:
         value: 256
     cell_type:
         value: 'None'
     mask_type:
-        value: 'attn_mask / rand_value'
+        value: 'src_key_padding_mask'
+    randomization:
+        values: [True, False]

@@ -11,6 +11,7 @@ import wandb
 from typing import Tuple
 import matplotlib.pyplot as plt
 
+
 class Trainer:
     def __init__(self,
                  batch_size: int,
@@ -102,8 +103,8 @@ class Trainer:
             ####### preprocess #######
             # load_data
             data = scv.datasets.pancreas(path)
-            #data = scv.datasets.bonemarrow(path)
-            #data = scv.datasets.pbmc68k()
+            # data = scv.datasets.bonemarrow(path)
+            # data = scv.datasets.pbmc68k()
             min_test_set = 481
             max_test_set = 642
             n_train_set = len(data) - max_test_set
@@ -151,16 +152,17 @@ class Trainer:
             data = p.binned_data
             # split data
             print(f'number of tokens: {self.n_token}')
-            print(f'number of non zero bins: {p.mean_non_zero_bins}')
-            trainset = scDataSet(data[idx_train_cells], p.mean_non_zero_bins, self.n_token)
-            testset = scDataSet(data[idx_test_cells], p.mean_non_zero_bins, self.n_token)
+            print(f'number of non zero bins: {config.mlm_probability}')
+            print(f'randomization: {config.randomization}')
+            trainset = scDataSet(data[idx_train_cells], config.mlm_probability, self.n_token)
+            testset = scDataSet(data[idx_test_cells], config.mlm_probability, self.n_token)
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
             x_src = torch.tensor(encode(tokens))
             # generate data loaders
-            train_loader = DataLoader(trainset, batch_size=self.batch_size, shuffle=True, num_workers=4)
-            test_loader = DataLoader(testset, batch_size=self.batch_size, shuffle=True, num_workers=4)
+            train_loader = DataLoader(trainset, batch_size=config.batch_size, shuffle=True, num_workers=4)
+            test_loader = DataLoader(testset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             n_train = len(trainset)
             # set up model
             model = TransformerModel(d_model=self.n_embd,
@@ -169,25 +171,27 @@ class Trainer:
                                      n_input_bins=config.n_bin,
                                      n_token=n_token,
                                      nhead=self.n_head)
-            wandb.watch(model, log='all', log_freq=np.ceil(n_train/self.batch_size))
+            wandb.watch(model, log='all', log_freq=np.ceil(n_train / self.batch_size))
             m = model.to(self.device)
             # print the number of parameters in the model
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             # training loop
-            for epoch in range(self.n_epoch):
+            for epoch in range(config.n_epoch):
                 for i, (x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
-                    loss = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device), mask.to(self.device))
+                    loss = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device),
+                                 mask.to(self.device), config.mask_type)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
-                test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src)
+                test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
+                                                                           , config.randomization, config.mask_type)
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(loss, test_loss, test_accuracy, epoch)
@@ -199,30 +203,41 @@ class Trainer:
                 #     torch.save(reconstructed_profiles, f'../data/predictions_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
+                # save model
+            # torch.save(m.state_dict(), '../data/model_100_masking_prob.pth')
 
-
-
-    def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) \
+    def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
+                                   x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
             -> Tuple[float, float]:
         """
         uses a whole run of the validation set to compute the accuracy
         """
+        print('get_test_loss')
         model.eval()
         acc = []
         loss = []
         for i, (x_val, attn_mask, mask) in enumerate(test_loader):
             # evaluate the loss
-            l, a = model(x_src.to(self.device), x_val.to(self.device) ,attn_mask.to(self.device), mask.to(self.device), get_accuracy=True)
+            # print masks
+            # print(f'src_key_padding_mask:\n{mask}\n')
+            # print(f'attn_mask:\n')
+            # for j in range(attn_mask.shape[0]):
+            #     print(attn_mask[j].detach().numpy())
+            # print()
+            l, a = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device), mask.to(self.device),
+                         mask_type, get_accuracy=True, randomize_masked_positions=randomize_masked_positions)
             loss.append(l.item())
             acc.append(a.item())
+            if i == 5:
+                sys.exit()
         model.train()
         return (float(np.mean(loss)), float(np.mean(acc)))
 
-    def train_log(self, loss: float, test_loss: float, test_accuracy:float, epoch: int) -> None:
+    def train_log(self, loss: float, test_loss: float, test_accuracy: float, epoch: int) -> None:
         """
         parameters tracked by wandb
         """
-        wandb.log({"epoch": epoch+1, "train_loss": loss, "test_loss": test_loss, "test_accuracy": test_accuracy}
+        wandb.log({"epoch": epoch + 1, "train_loss": loss, "test_loss": test_loss, "test_accuracy": test_accuracy}
                   , step=epoch)
 
     def get_valdiation_reconstructions(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> Tensor:
@@ -232,7 +247,8 @@ class Trainer:
         masks = []
         for i, (x_val, mask) in enumerate(test_loader):
             # evaluate the loss
-            reconstructed_profiles.append(model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device), True))
+            reconstructed_profiles.append(
+                model(x_src.to(self.device), x_val.to(self.device), mask.to(self.device), True))
             val.append(x_val)
             masks.append(mask)
         model.train()
@@ -241,11 +257,12 @@ class Trainer:
         val = torch.cat(val, dim=0)
         return val, reconstructed_profiles, masks
 
+
 if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
     n_token = 200
-    n_epoch = 100
+    n_epoch = 150
     eval_interval = 100
     learning_rate = 3e-4
     eval_iters = 10
