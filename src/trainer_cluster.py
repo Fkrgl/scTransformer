@@ -216,7 +216,6 @@ class Trainer:
             # values = torch.cat(values, dim=0)
             # torch.save(masks, f'../data/test_masks.pt')
             # torch.save(values, f'../data/test_values.pt')
-            check_instances = [20, 100, 199]
             # training loop
             for epoch in range(self.n_epoch):
                 for i, (x_val, mask) in enumerate(train_loader):
@@ -242,7 +241,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
             # save model
-            torch.save(m.state_dict(), '../data/model_3.pth')
+            # torch.save(m.state_dict(), '../data/model_3.pth')
 
 
 
