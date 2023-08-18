@@ -185,13 +185,13 @@ class TransformerModel(nn.Module):
             Tensor of expression prediction
         """
         # if test samples are processed, randomize masked positions
-        print(f'values: {values[0]}')
+        # print(f'values: {values[0]}')
         labels = values.clone().to(self.device)
         if not get_accuracy and randomize_masked_positions:
-            print('randomize')
+            # print('randomize')
             values = self.randomize_masked_positions(values, key_padding_mask)
-        print(f'values: {values[0]}')
-        print(f'labels: {labels[0]}')
+        # print(f'values: {values[0]}')
+        # print(f'labels: {labels[0]}')
         transformer_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # if get_accuracy:
         #     transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
@@ -203,7 +203,7 @@ class TransformerModel(nn.Module):
         output = loss
         # get reconstructed profiles
         if get_reconstruction:
-            output = mlm_output
+            output = [mlm_output, masked_pred_exp, masked_label_exp]
         # accuracy here
         # accuracy is only computed using masked values
         if get_accuracy:
@@ -224,7 +224,7 @@ class TransformerModel(nn.Module):
         """
         masked_pred_exp = torch.Tensor([]).to(self.device)
         masked_label_exp = torch.Tensor([]).to(self.device)
-        print('get masked expressions')
+        # print('get masked expressions')
         ###### braucen wir diesen loop ueberhaupt noch?!
         for i in range(mlm_output.shape[0]):
             pred = mlm_output[i]
@@ -234,8 +234,8 @@ class TransformerModel(nn.Module):
             true_bins = value[mask]
             masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)), dim=0)
             masked_label_exp = torch.cat((masked_label_exp, true_bins.to(self.device)))
-        print(f'masked_label_exp[0]:\n{masked_label_exp}')
-        print(f'masked_pred_exp[0]:\n{masked_pred_exp}')
+        # print(f'masked_label_exp[0]:\n{masked_label_exp}')
+        # print(f'masked_pred_exp[0]:\n{masked_pred_exp}')
         return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
 
     def generate(self,
@@ -247,7 +247,7 @@ class TransformerModel(nn.Module):
         encoder_output = self._encode(src, values)
         # decode transformer encoded gene vectors
         decoder_output = self.decoder(encoder_output)
-        print(f'decoder_output_shape: {decoder_output.shape}')
+        # print(f'decoder_output_shape: {decoder_output.shape}')
         # get softmax
         s = nn.Softmax(dim=0)
         softmax_output = s(decoder_output)

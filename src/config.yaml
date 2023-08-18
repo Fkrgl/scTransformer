@@ -5,16 +5,16 @@ metric:
   goal: minimize
 parameters:
     n_epoch:
-        value: 10
+        value: 400
     mlm_probability:
-        value: 3
+        value: 100
     n_bin:
-        value: 20
+        values: [100, 1000]
     batch_size:
-        value: 1
+        value: 256
     cell_type:
         value: 'None'
     mask_type:
-        value: 'attn_mask'
+        value: 'src_key_padding_mask'
     randomization:
-        value: True
+        value: False

@@ -179,7 +179,7 @@ class Trainer:
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             # training loop
             for epoch in range(config.n_epoch):
-                print('train..')
+                # print('train..')
                 for i, (x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
@@ -191,7 +191,7 @@ class Trainer:
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
-                print('test..')
+                # print('test..')
                 test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
                                                                            , config.randomization, config.mask_type)
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
@@ -206,7 +206,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            # torch.save(m.state_dict(), '../data/model_100_masking_prob.pth')
+            torch.save(m.state_dict(), '../data/model_4.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -261,7 +261,7 @@ class Trainer:
 if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
-    n_token = 25
+    n_token = 200
     n_epoch = 150
     eval_interval = 100
     learning_rate = 3e-4
