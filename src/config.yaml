@@ -5,11 +5,11 @@ metric:
   goal: minimize
 parameters:
     n_epoch:
-        value: 400
+        value: 1
     mlm_probability:
-        value: 100
+        value: 22
     n_bin:
-        values: [100, 1000]
+        value: 100
     batch_size:
         value: 256
     cell_type:

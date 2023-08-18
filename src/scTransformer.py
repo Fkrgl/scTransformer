@@ -203,12 +203,15 @@ class TransformerModel(nn.Module):
         output = loss
         # get reconstructed profiles
         if get_reconstruction:
-            output = [mlm_output, masked_pred_exp, masked_label_exp]
+            output = mlm_output
         # accuracy here
         # accuracy is only computed using masked values
         if get_accuracy:
             acc_value = self.acc_function(masked_pred_exp, masked_label_exp)
             output = (loss, acc_value)
+
+        if get_accuracy and get_reconstruction:
+            output = (loss, acc_value, mlm_output)
 
         return output
 

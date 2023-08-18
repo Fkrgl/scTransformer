@@ -10,6 +10,7 @@ from DataSet import scDataSet
 import wandb
 from typing import Tuple
 import matplotlib.pyplot as plt
+from metrics import *
 
 
 class Trainer:
@@ -192,11 +193,22 @@ class Trainer:
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
                 # print('test..')
-                test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
+                test_loss, test_accuracy, mlm_output = self.get_test_loss_and_accuracy(model, test_loader, x_src
                                                                            , config.randomization, config.mask_type)
+                # classifier two sample test
+                X = torch.tensor(data[idx_test_cells]).type(torch.DoubleTensor)
+                Y = mlm_output.cpu().detach().numpy()
+                Y = torch.tensor(np.argmax(Y, axis=2)).type(torch.DoubleTensor)
+                print(f'Y: {Y}')
+                print(Y.shape)
+                print(f'data[idx_test_cells]: {data[idx_test_cells]}')
+                print(data[idx_test_cells].shape)
+                print(f'mlm_output: {mlm_output}')
+                print(mlm_output.shape)
+                sampleTest_accuracy = c2st(X, Y)
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
-                self.train_log(loss, test_loss, test_accuracy, epoch)
+                self.train_log(loss, test_loss, test_accuracy, epoch, sampleTest_accuracy)
                 # get model predictions
                 # if epoch in check_instances:
                 #     val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
@@ -206,11 +218,10 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '../data/model_4.pth')
+            # torch.save(m.state_dict(), '../data/model_4.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
-                                   x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
-            -> Tuple[float, float]:
+                                   x_src: Tensor, randomize_masked_positions: bool, mask_type: str):
         """
         uses a whole run of the validation set to compute the accuracy
         """
@@ -218,6 +229,7 @@ class Trainer:
         model.eval()
         acc = []
         loss = []
+        output = []
         for i, (x_val, attn_mask, mask) in enumerate(test_loader):
             # evaluate the loss
             # print masks
@@ -226,18 +238,22 @@ class Trainer:
             # for j in range(attn_mask.shape[0]):
             #     print(attn_mask[j].detach().numpy())
             # print()
-            l, a = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device), mask.to(self.device),
-                         mask_type, get_accuracy=True, randomize_masked_positions=randomize_masked_positions)
+            l, a, mlm_out = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device), mask.to(self.device),
+                         mask_type, get_accuracy=True, randomize_masked_positions=randomize_masked_positions,
+                         get_reconstruction=True)
             loss.append(l.item())
             acc.append(a.item())
+            output.append(mlm_out)
         model.train()
-        return (float(np.mean(loss)), float(np.mean(acc)))
+        return (float(np.mean(loss)), float(np.mean(acc)), torch.vstack(output))
 
-    def train_log(self, loss: float, test_loss: float, test_accuracy: float, epoch: int) -> None:
+    def train_log(self, loss: float, test_loss: float, test_accuracy: float, epoch: int, sampleTest_accuracy: float)\
+            -> None:
         """
         parameters tracked by wandb
         """
-        wandb.log({"epoch": epoch + 1, "train_loss": loss, "test_loss": test_loss, "test_accuracy": test_accuracy}
+        wandb.log({"epoch": epoch + 1, "train_loss": loss, "test_loss": test_loss, "test_accuracy": test_accuracy,
+                   "Classifier2Sample_accuracy": sampleTest_accuracy}
                   , step=epoch)
 
     def get_valdiation_reconstructions(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> Tensor:
