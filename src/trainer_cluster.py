@@ -144,18 +144,22 @@ class Trainer:
                 idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
 
             # preprocess
-            p = Preprocessor(data, config.n_bin, self.min_counts_genes, self.n_token)
+            p = Preprocessor(data, config.n_bin, self.min_counts_genes, config.n_token)
             p.permute()
             p.preprocess()
             p.get_mean_number_of_nonZero_bins()
             tokens = p.get_gene_tokens()
             data = p.binned_data
             # split data
-            print(f'number of tokens: {self.n_token}')
-            print(f'number of non zero bins: {config.mlm_probability}')
+            print(f'number of tokens: {config.n_token}')
+            print(f'number of non zero bins: {p.mean_non_zero_bins}')
+            print(f'masked_genes/all_genes={p.mean_non_zero_bins*2/config.n_token}')
             print(f'randomization: {config.randomization}')
-            trainset = scDataSet(data[idx_train_cells], config.mlm_probability, self.n_token)
-            testset = scDataSet(data[idx_test_cells], config.mlm_probability, self.n_token)
+            # adapt mean_non_zero_bins to desired mlm_prob
+            n_mask = int((config.n_token * config.mlm_probability) // 2)
+            print(f'adapted masking={n_mask * 2 / config.n_token}')
+            trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, config.n_token)
+            testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -165,12 +169,12 @@ class Trainer:
             test_loader = DataLoader(testset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             n_train = len(trainset)
             # set up model
-            model = TransformerModel(d_model=self.n_embd,
-                                     dim_feedforward=self.dim_feedforward,
-                                     nlayers=self.n_layer,
+            model = TransformerModel(d_model=config.n_emb,
+                                     dim_feedforward=config.dim_feedforward,
+                                     nlayers=config.n_layer,
                                      n_input_bins=config.n_bin,
-                                     n_token=n_token,
-                                     nhead=self.n_head)
+                                     n_token=config.n_token,
+                                     nhead=config.n_head)
             wandb.watch(model, log='all', log_freq=np.ceil(n_train / self.batch_size))
             m = model.to(self.device)
             # print the number of parameters in the model
@@ -180,11 +184,12 @@ class Trainer:
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
-                for i, (x_val, attn_mask, mask) in enumerate(train_loader):
+                for i, (x_val, masked_x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
-                    loss = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device),
-                                 mask.to(self.device), config.mask_type, randomize_masked_positions=config.randomization)
+                    loss = model(x_src.to(self.device), x_val.to(self.device), masked_x_val.to(self.device),
+                                 attn_mask.to(self.device), mask.to(self.device), config.mask_type
+                                 , randomize_masked_positions=config.randomization)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
@@ -206,7 +211,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '../data/model_4.pth')
+            #torch.save(m.state_dict(), '../data/model_4.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -218,16 +223,10 @@ class Trainer:
         model.eval()
         acc = []
         loss = []
-        for i, (x_val, attn_mask, mask) in enumerate(test_loader):
-            # evaluate the loss
-            # print masks
-            # print(f'src_key_padding_mask:\n{mask}\n')
-            # print(f'attn_mask:\n')
-            # for j in range(attn_mask.shape[0]):
-            #     print(attn_mask[j].detach().numpy())
-            # print()
-            l, a = model(x_src.to(self.device), x_val.to(self.device), attn_mask.to(self.device), mask.to(self.device),
-                         mask_type, get_accuracy=True, randomize_masked_positions=randomize_masked_positions)
+        for i, (x_val, masked_x_val, attn_mask, mask) in enumerate(test_loader):
+            l, a = model(x_src.to(self.device), x_val.to(self.device), masked_x_val.to(self.device),
+                         attn_mask.to(self.device), mask.to(self.device), mask_type, get_accuracy=True,
+                         randomize_masked_positions=randomize_masked_positions)
             loss.append(l.item())
             acc.append(a.item())
         model.train()

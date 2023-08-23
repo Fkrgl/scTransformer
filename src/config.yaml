@@ -5,13 +5,23 @@ metric:
   goal: minimize
 parameters:
     n_epoch:
-        value: 400
-    mlm_probability:
         value: 100
+    mlm_probability:
+        value: 0.15
     n_bin:
-        values: [100, 1000]
+        value: 100
+    n_token:
+        value: 500
+    n_emb:
+        value: 512
+    n_head:
+        value: 8
+    dim_feedforward:
+        values: [32, 512]
+    n_layer:
+        values: [8, 12]
     batch_size:
-        value: 256
+        value: 16
     cell_type:
         value: 'None'
     mask_type:

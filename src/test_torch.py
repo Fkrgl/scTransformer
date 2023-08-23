@@ -46,3 +46,6 @@ print(f'attn_mask:\n{attn_mask} ')
 # print(torch.vstack([a,a]))
 
 # a = torch.tensor([[[2,1], [2,2], [3,1]]])
+
+emb = nn.Embedding(10,10)
+print(emb(torch.LongTensor([[0,2,-1,4,4]])))

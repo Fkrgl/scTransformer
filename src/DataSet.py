@@ -7,11 +7,13 @@ from preprocessor import Preprocessor
 class scDataSet(Dataset):
     def __init__(self,
                  data,
+                 n_bins: int,
                  n_non_zero_bins: int,
                  n_tokens: int
                  ):
         self.n_non_zero_bins = n_non_zero_bins
         self.n_tokens = n_tokens
+        self.mask_value = n_bins  # value used for masking gene expression values
         # load data
         self.data = data
 
@@ -22,54 +24,39 @@ class scDataSet(Dataset):
         # get sample
         sample = torch.tensor(self.data[idx])
         # generate mask for sample
+        #mask = self.get_balanced_mask(sample)
         mask = self.get_balanced_mask(sample)
         attn_mask = self.create_attention_mask(mask)
+        masked_sample = sample.detach().clone()
+        masked_sample[mask] = self.mask_value
         # print(f'padding mask: \n{mask}')
         # print(f'attn_mask mask: \n{attn_mask}')
         # print()
-        return sample, attn_mask, mask
+        return sample, masked_sample, attn_mask, mask
 
-    # def get_prob_mask(self, expressions: torch.Tensor) -> torch.Tensor:
-    #     """
-    #     generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
-    #     process. More information here:
-    #     https://github.com/pytorch/pytorch/blob/11f1014c05b902d3eef0fe01a7c432f818c2bdfe/torch/nn/functional.py#L3892
-    #     Args:
-    #         expressions: expression matrix (batch, seq_length)
-    #         mlm_probability: probability fo a gene to get masked
-    #
-    #     Returns:
-    #         Boolean Tensor of shape (batch, n_token) with True where genes should be masked
-    #
-    #     """
-    #     shape = expressions.shape
-    #     probability_matrix = torch.full(shape, self.mlm_probability)
-    #     mask = torch.bernoulli(probability_matrix).bool()
-    #     return mask
+    def get_prob_mask(self, expressions: torch.Tensor) -> torch.Tensor:
+        """
+        generates a mask for a proportion of genes in the input data. The masks genes are predicted later in the training
+        process. More information here:
+        https://github.com/pytorch/pytorch/blob/11f1014c05b902d3eef0fe01a7c432f818c2bdfe/torch/nn/functional.py#L3892
+        Args:
+            expressions: expression matrix (batch, seq_length)
+            mlm_probability: probability fo a gene to get masked
+
+        Returns:
+            Boolean Tensor of shape (batch, n_token) with True where genes should be masked
+
+        """
+        shape = expressions.shape
+        probability_matrix = torch.full(shape, self.n_non_zero_bins)
+        mask = torch.bernoulli(probability_matrix).bool()
+        return mask
 
     def get_balanced_mask(self, sample):
         if self.n_non_zero_bins == 1:
             mask = np.zeros(self.n_tokens, dtype=bool)
             n_non_zeros = np.count_nonzero(sample)
             # trim n_non_zeros if its exceeds the maximal number of masked genes (=2*self.n_non_zero_bins)
-            if n_non_zeros > 2*self.n_non_zero_bins:
-                # in this case all masked genes have a non zero bin value
-                n_non_zeros = 2*self.n_non_zero_bins
-            #print(f'number of non zero bins: {n_non_zeros}')
-            n_zeros = self.n_non_zero_bins
-            # less non zero bins than average
-            if n_non_zeros < self.n_non_zero_bins:
-                diff = self.n_non_zero_bins - n_non_zeros
-                # print(f'less non zero genes. diff={diff}')
-                # print(f'n_zeros = {self.n_non_zero_bins} + {diff}')
-                n_zeros = self.n_non_zero_bins + diff
-            # more non-zero bins than average
-            elif n_non_zeros > self.n_non_zero_bins:
-                diff = n_non_zeros - self.n_non_zero_bins
-                # print(f'more non zero genes. diff={diff}')
-                # print(f'n_zeros = {self.n_non_zero_bins} - {diff}')
-                n_zeros = self.n_non_zero_bins - diff
-            # sample indeces
             # print(f'n_zeros={n_zeros}')
             idx = np.arange(self.n_tokens)
             idx_zero = idx[sample == 0]

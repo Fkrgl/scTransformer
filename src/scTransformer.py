@@ -42,7 +42,7 @@ class TransformerModel(nn.Module):
 
         # define the gene encoder
         self.encoder = GeneEncoder(n_token, d_model)
-        self.value_encoder = ValueEncoder(self.n_input_bins, d_model)
+        self.value_encoder = ValueEncoder(self.n_input_bins+1, d_model) # , padding_idx=self.n_input_bins, +1 beacuse we added bin -1 as mask_value
         # define the transformer encoder
         encoder_layers = TransformerEncoderLayer(d_model=d_model,
                                                  nhead=self.nhead,
@@ -167,6 +167,7 @@ class TransformerModel(nn.Module):
     def forward(self,
                 src: Tensor,
                 values: Tensor,
+                masked_values: Tensor,
                 attn_mask: Tensor,
                 key_padding_mask: Tensor,
                 mask_type: str,
@@ -179,6 +180,7 @@ class TransformerModel(nn.Module):
         Args:
             src: token ids, shape (batch_size, seq_len)
             values: token values, shape (batch_size, seq_len)
+            masked_values: binned expression values where the expression of masked genes is substitutes by mask_value
             key_padding_mask: mask for src, shape (batch_size, seq_len)
 
         Returns:
@@ -192,7 +194,10 @@ class TransformerModel(nn.Module):
             values = self.randomize_masked_positions(values, key_padding_mask)
         # print(f'values: {values[0]}')
         # print(f'labels: {labels[0]}')
-        transformer_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
+        # masked values are used as input for transformer
+        # print(f'masked_values:\n {masked_values}')
+        # print(f'mask:\n {key_padding_mask}')
+        transformer_output = self._encode(src, masked_values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # if get_accuracy:
         #     transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
         # each gene embedding gets its own expression value prediction
@@ -207,6 +212,11 @@ class TransformerModel(nn.Module):
         # accuracy here
         # accuracy is only computed using masked values
         if get_accuracy:
+            # print(f'labels:\n {labels}')
+            # print(f'mask:\n {key_padding_mask}')
+            # print(f'masked_values:\n {masked_values}')
+            # print(f'masked_pred_exp:\n{masked_pred_exp}')
+            # print(f'masked_label_exp\n{masked_label_exp}')
             acc_value = self.acc_function(masked_pred_exp, masked_label_exp)
             output = (loss, acc_value)
 

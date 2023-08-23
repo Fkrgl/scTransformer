@@ -114,13 +114,14 @@ class Trainer:
             idx_rest = list(set(idx_all) - set(idx_test_cells))
             idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train, replace=False)
             # preprocess
-            p = Preprocessor(data, self.n_bin, self.min_counts_genes, self.n_token)
+            p = Preprocessor(data, self.n_bin, self.min_counts_genes, config.n_token)
             p.preprocess()
+            p.get_mean_number_of_nonZero_bins()
             tokens = p.get_gene_tokens()
             data = p.binned_data
             # split data
-            trainset = scDataSet(data[idx_train_cells], config.mlm_probability, self.n_token)
-            testset = scDataSet(data[idx_test_cells], config.mlm_probability, self.n_token)
+            trainset = scDataSet(data[idx_train_cells], self.n_bin, p.mean_non_zero_bins,  config.n_token)
+            testset = scDataSet(data[idx_test_cells], self.n_bin, p.mean_non_zero_bins, config.n_token)
             print(f'mlm_prob: {trainset.n_non_zero_bins}')
             print(f'length trainset: {len(trainset)}')
             print(f'length testset: {len(testset)}')
@@ -137,7 +138,7 @@ class Trainer:
                                      dim_feedforward=self.dim_feedforward,
                                      nlayers=self.n_layer,
                                      n_input_bins=self.n_bin,
-                                     n_token=n_token,
+                                     n_token=config.n_token,
                                      nhead=self.n_head)
             wandb.watch(model, log='all', log_freq=np.ceil(n_train/self.batch_size))
             m = model.to(self.device)
@@ -146,11 +147,11 @@ class Trainer:
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
             for epoch in range(self.n_epoch):
-                for i, (x_val, attn_mask, mask) in enumerate(train_loader):
+                for i, (x_val, masked_x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
                     # attn_mask = attn_mask[0]
-                    loss = model(x_src, x_val, attn_mask, mask, self.mask_type, randomize_masked_positions=config.randomization)
+                    loss = model(x_src, x_val, masked_x_val, attn_mask, mask, self.mask_type, randomize_masked_positions=config.randomization)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
@@ -190,9 +191,9 @@ class Trainer:
         model.eval()
         acc = []
         loss = []
-        for i, (x_val, attn_mask, mask) in enumerate(test_loader):
+        for i, (x_val, masked_x_val, attn_mask, mask) in enumerate(test_loader):
             # evaluate the loss
-            l, a = model(x_src, x_val, attn_mask, mask, mask_type, get_accuracy=True)
+            l, a = model(x_src, x_val, masked_x_val, attn_mask, mask, mask_type, get_accuracy=True)
             loss.append(l.item())
             acc.append(a.item())
         model.train()
@@ -224,7 +225,7 @@ wandb_project = 'dummy_sweep'
 
 # hyperparameters
 batch_size = 1
-n_token = 25
+n_token = 200
 n_epoch = 1
 eval_interval = 100
 learning_rate = 3e-4
@@ -234,10 +235,10 @@ n_embd = 10
 dim_feedforward = 100
 n_head = 2
 n_layer = 2
-n_bin = 20
+n_bin = 100
 dropout = 0.5
 min_counts_genes = 10
-mlm_probability = 3
+mlm_probability = 100
 seed = 1234
 dataset_path = '../data/Pancreas/endocrinogenesis_day15.h5ad'
 mask_type = 'src_key_padding_mask'
