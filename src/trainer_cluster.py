@@ -181,6 +181,7 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
+            scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=20, gamma=0.05, verbose=True)
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
@@ -202,6 +203,7 @@ class Trainer:
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(loss, test_loss, test_accuracy, epoch)
+                scheduler.step()
                 # get model predictions
                 # if epoch in check_instances:
                 #     val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
@@ -219,7 +221,6 @@ class Trainer:
         """
         uses a whole run of the validation set to compute the accuracy
         """
-        print('get_test_loss')
         model.eval()
         acc = []
         loss = []
@@ -261,9 +262,9 @@ if __name__ == '__main__':
     # hyperparameters
     batch_size = 264
     n_token = 200
-    n_epoch = 150
+    n_epoch = 100
     eval_interval = 100
-    learning_rate = 3e-4
+    learning_rate = 3e-3
     eval_iters = 10
     split = 0.9
     n_embd = 10

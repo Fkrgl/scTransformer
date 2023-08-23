@@ -17,9 +17,9 @@ parameters:
     n_head:
         value: 8
     dim_feedforward:
-        values: [32, 512]
+        value: 32
     n_layer:
-        values: [8, 12]
+        value: 8
     batch_size:
         value: 16
     cell_type:

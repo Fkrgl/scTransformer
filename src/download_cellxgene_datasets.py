@@ -1,5 +1,6 @@
 import cellxgene_census
 import argparse
+import scanpy as sc
 from preprocessor import *
 
 def download(tissue:str, outpu_dir: str):
@@ -20,12 +21,14 @@ def preprocess_data(adata, tissue):
     p.preprocess()
     data = p.binned_data
     print(f'after preprocessing tissue {tissue} has {data.shape[0]} cells left')
+    print(data.shape)
 
 
 if __name__ == '__main__':
     tissue = 'colon'
     output_dir = '/mnt/qb/work/claassen/cxb257/data/cellxgene/colon_normal.h5ad'
-    adata = download(tissue, output_dir)
+    #adata = download(tissue, output_dir)
+    adata = sc.read_h5ad(output_dir)
     preprocess_data(adata, tissue)
 
 
