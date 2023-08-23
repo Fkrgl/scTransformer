@@ -10,6 +10,7 @@ from DataSet import scDataSet
 import wandb
 from typing import Tuple
 import matplotlib.pyplot as plt
+import transformers
 
 
 class Trainer:
@@ -151,6 +152,7 @@ class Trainer:
             tokens = p.get_gene_tokens()
             data = p.binned_data
             # split data
+            print(f'learning rate: {learning_rate}')
             print(f'number of tokens: {config.n_token}')
             print(f'number of non zero bins: {p.mean_non_zero_bins}')
             print(f'masked_genes/all_genes={p.mean_non_zero_bins*2/config.n_token}')
@@ -181,7 +183,13 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
-            scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=20, gamma=0.05, verbose=True)
+            #scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=20, gamma=0.05, verbose=True)
+            train_steps = config.n_epoch * config.batch_size
+            warm_up = int(0.15 * train_steps)
+            scheduler = transformers.get_linear_schedule_with_warmup(optimizer=optimizer,
+                                                                     num_warmup_steps=warm_up,
+                                                                     num_training_steps=train_steps
+                                                                     )
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
@@ -194,6 +202,7 @@ class Trainer:
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
+                    scheduler.step()
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
@@ -203,7 +212,6 @@ class Trainer:
                 print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(loss, test_loss, test_accuracy, epoch)
-                scheduler.step()
                 # get model predictions
                 # if epoch in check_instances:
                 #     val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
@@ -264,7 +272,7 @@ if __name__ == '__main__':
     n_token = 200
     n_epoch = 100
     eval_interval = 100
-    learning_rate = 3e-3
+    learning_rate = 3e-5
     eval_iters = 10
     split = 0.9
     n_embd = 10
