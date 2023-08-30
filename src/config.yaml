@@ -7,24 +7,26 @@ parameters:
     n_epoch:
         value: 100
     mlm_probability:
-        value: 0.15
+        value: 0.07
     n_bin:
         value: 100
     n_token:
         value: 500
     n_emb:
-        value: 512
+        value: 128
     n_head:
-        value: 8
+        value: 4
     dim_feedforward:
-        values: [32, 512]
+        value: 32
     n_layer:
-        values: [8, 12]
+        value: 4
     batch_size:
-        value: 16
+        value: 128
     cell_type:
         value: 'None'
     mask_type:
         value: 'src_key_padding_mask'
     randomization:
         value: False
+    tissue:
+        value: 'B memory cell'

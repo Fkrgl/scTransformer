@@ -1,8 +1,10 @@
 #!/bin/bash
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=2
+#SBATCH --mem=25G
 #SBATCH --ntasks-per-node=1
-#SBATCH --time=300            # Runtime in D-HH:MM
+#SBATCH --nodes=1                 # Ensure that all cores are on one machine
+#SBATCH --time=300  # Runtime in D-HH:MM
 #SBATCH --gres=gpu:1    # optionally type and number of gpus
 #SBATCH -o /mnt/qb/work/claassen/cxb257/out/%j.out # Standard output - make sure this is not on $HOME
 #SBATCH -e /mnt/qb/work/claassen/cxb257/err/%j.err # Standard error - make sure this is not on $HOME

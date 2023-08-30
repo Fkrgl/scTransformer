@@ -184,6 +184,7 @@ class Trainer:
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
+                train_loss = 0
                 for i, (x_val, masked_x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
@@ -193,15 +194,17 @@ class Trainer:
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
+                    train_loss += loss.item()
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
                 # print('test..')
+                train_loss /= config.batch_size
                 test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
                                                                            , config.randomization, config.mask_type)
-                print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {loss:.4f}, test error = {test_loss:.4f}'
+                print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {train_loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
-                self.train_log(loss, test_loss, test_accuracy, epoch)
+                self.train_log(train_loss, test_loss, test_accuracy, epoch)
                 # get model predictions
                 # if epoch in check_instances:
                 #     val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
@@ -275,8 +278,8 @@ if __name__ == '__main__':
     min_counts_genes = 10
     mlm_probability = None
     seed = 1234
-    dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
-
+    #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/memory_B_cell.h5ad'
     # create model
     trainer = Trainer(
         batch_size=batch_size,

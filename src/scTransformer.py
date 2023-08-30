@@ -37,6 +37,7 @@ class TransformerModel(nn.Module):
         self.d_model = d_model
         self.nhead = nhead
         self.activation = "relu"
+        #self.dropout = dropout
         self.n_input_bins = n_input_bins
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 

@@ -12,6 +12,7 @@ class scDataSet(Dataset):
                  n_tokens: int
                  ):
         self.n_non_zero_bins = n_non_zero_bins
+        print(f'masking prob real: {self.n_non_zero_bins}')
         self.n_tokens = n_tokens
         self.mask_value = n_bins  # value used for masking gene expression values
         # load data
