@@ -279,7 +279,7 @@ if __name__ == '__main__':
     mlm_probability = None
     seed = 1234
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
-    dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/memory_B_cell.h5ad'
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/heart.h5ad'
     # create model
     trainer = Trainer(
         batch_size=batch_size,

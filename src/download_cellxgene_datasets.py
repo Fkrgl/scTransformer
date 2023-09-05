@@ -9,9 +9,10 @@ def download(tissue:str, outpu_dir: str):
         adata = cellxgene_census.get_anndata(
             census=census,
             organism="Homo sapiens",
-            obs_value_filter=f"tissue_general == 'liver' and disease == 'normal' and  cell_type == 'hepatocyte'",
+            obs_value_filter=f"tissue_general == 'heart' and disease == 'normal'",
             column_names={"obs": []}
         )
+        # "tissue_general == 'liver' and disease == 'normal' and  cell_type == 'hepatocyte'"
         print(f'tissue {tissue} has {adata.X.shape[0]} samples')
         print(adata.X.shape)
         adata.write_h5ad(outpu_dir)
@@ -34,7 +35,7 @@ def preprocess_data(adata, tissue):
 if __name__ == '__main__':
     print('hi')
     tissue = 'pancreas'
-    output_dir = f'/mnt/qb/work/claassen/cxb257/data/cellxgene/hepatocyte.h5ad'
+    output_dir = f'/mnt/qb/work/claassen/cxb257/data/cellxgene/heart.h5ad'
     adata = download(tissue, output_dir)
     #adata = sc.read_h5ad(output_dir)
     preprocess_data(adata, tissue)

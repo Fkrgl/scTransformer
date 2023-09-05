@@ -5,13 +5,13 @@ metric:
   goal: minimize
 parameters:
     n_epoch:
-        value: 100
+        value: 25
     mlm_probability:
-        value: 0.07
+        value: 0.03
     n_bin:
         value: 100
     n_token:
-        value: 500
+        values: [500, 1000]
     n_emb:
         value: 128
     n_head:
@@ -21,7 +21,7 @@ parameters:
     n_layer:
         value: 4
     batch_size:
-        value: 128
+        value: 50
     cell_type:
         value: 'None'
     mask_type:
@@ -29,4 +29,4 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'B memory cell'
+        value: 'heart'
