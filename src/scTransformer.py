@@ -252,23 +252,36 @@ class TransformerModel(nn.Module):
     def generate(self,
                  src: Tensor,
                  values: Tensor,
-                 bins):
+                 key_padding_mask: Tensor,
+                 bins,
+                 use_val_emb: bool = True
+                 ):
         n_gen = self.n_token
         # embedd genes of target cell and feed in transformer encoder
-        encoder_output = self._encode(src, values)
+        encoder_output = self._encode(src, values, key_padding_mask, use_val_emb)
         # decode transformer encoded gene vectors
         decoder_output = self.decoder(encoder_output)
         # print(f'decoder_output_shape: {decoder_output.shape}')
         # get softmax
-        s = nn.Softmax(dim=0)
+        s = nn.Softmax(dim=1)
         softmax_output = s(decoder_output)
+        # print(softmax_output.sum(dim=0))
+        # print(softmax_output.sum(dim=0).shape)
+        # print(f'softmax:\n{softmax_output}')
+        # print(softmax_output[0].sum())
+        # print(softmax_output[0].shape)
         # sample from softmax
         sample_profile = np.zeros(shape=n_gen)
+        # print(softmax_output[0])
+        # print(softmax_output[0].shape)
+        # print(softmax_output[0].sum())
         for i in range(n_gen):
-            prob = softmax_output[:, i]
+            prob = softmax_output[i].detach().numpy()
+            assert len(prob) == len(bins)
             bin = np.random.choice(bins, size=1, p=prob)
             sample_profile[i] = bin
         return sample_profile
+
 
 class GeneEncoder(nn.Module):
     """

@@ -2,6 +2,10 @@ import scvelo as scv
 import scanpy as sc
 import numpy as np
 from anndata import AnnData
+import scanpy as scp
+import sys
+import argparse
+import math
 import torch
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -163,16 +167,44 @@ class Preprocessor:
         mean_non_zeros = int(np.round(np.mean(non_zeros),decimals=0))
         self.mean_non_zero_bins = mean_non_zeros
 
+    def save_processed_data(self, path_out: str) -> None:
+        # get size in byte of array
+        print("Size of the array: ",
+              self.binned_data.size)
+        print("Memory size of one array element in bytes: ",
+              self.binned_data.itemsize)
+        # memory size of numpy array in bytes
+        print("Memory size of numpy array in GB:",
+              np.round(self.binned_data.size * self.binned_data.itemsize / math.pow(1024, 3), decimals=4))
+        # save array
+        np.save(path_out, self.binned_data)
+
+
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('path_in',
+                        type=str,
+                        help='path to file of data set in h5ad format')
+    parser.add_argument('n_hvg',
+                        type=int,
+                        help='number of highly variable genes')
+    parser.add_argument('-path_out',
+                        type=str,
+                        help='path to file for preprocessed data')
+    args = parser.parse_args()
     # load dataset
-    anndata = scv.datasets.pancreas()
-    p = Preprocessor(anndata, 100)
+    anndata = scp.read_h5ad(args.path_in)
+    p = Preprocessor(anndata, 100, n_hvg=args.n_hvg)
     p.preprocess()
+    p.get_mean_number_of_nonZero_bins()
+    print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
+    if args.path_out:
+        p.save_processed_data(args.path_out)
     # print(p.binned_data)
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
     # print(f'number of non zeros: {np.count_nonzero(p.binned_data[0])}')
-    non_zeros = np.count_nonzero(p.binned_data, axis=1)
+    # non_zeros = np.count_nonzero(p.binned_data, axis=1)
     # print(f'number of non zeros: {non_zeros}')
     # print(f'{non_zeros.shape}')
     # print(f'mean of non zeros: {np.round(np.mean(non_zeros),decimals=0)}')

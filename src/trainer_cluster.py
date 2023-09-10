@@ -5,6 +5,7 @@ from preprocessor import Preprocessor
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 import scvelo as scv
+import scanpy as scp
 import numpy as np
 from DataSet import scDataSet
 import wandb
@@ -29,9 +30,11 @@ class Trainer:
                  dropout: float,
                  min_counts_genes: int,
                  mlm_probability: int,
+                 mean_non_zero_bins: int,
+                 path_preprocessed: str,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
-                 test_mode: Optional[bool] = False
+                 test_mode: Optional[bool] = False,
                  ):
         """
 
@@ -73,6 +76,8 @@ class Trainer:
             print('random seed active')
         self.subset = subset
         self.test_mode = test_mode
+        self.mean_non_zero_bins = mean_non_zero_bins
+        self.path_preprocessed = path_preprocessed
         print(f'cuda available: {torch.cuda.is_available()}')
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
@@ -101,65 +106,86 @@ class Trainer:
             config = wandb.config
             cell_type = config.cell_type
             ####### preprocess #######
-            # load_data
-            data = scv.datasets.pancreas(path)
-            # data = scv.datasets.bonemarrow(path)
-            # data = scv.datasets.pbmc68k()
-            min_test_set = 481
-            max_test_set = 642
-            n_train_set = len(data) - max_test_set
-            data.obs.reset_index(inplace=True)
-            # split for not omit any cell type
-            if cell_type == 'None':
+            if config.do_preprocessing:
+                # load_data
+                data = scp.read_h5ad(path)
+                print(f'data set has shape {data.shape}')
+                # data = scv.datasets.bonemarrow(path)
+                # data = scv.datasets.pbmc68k()
+                min_test_set = 481
+                max_test_set = 642
+                n_train_set = len(data) - max_test_set
+                data.obs.reset_index(inplace=True)
+                # split for not omit any cell type
+                if cell_type == 'None':
+                    n_train = int(0.9 * len(data))
+                    n_test = int(len(data) - n_train)
+                    idx_all = np.arange(len(data))
+                    idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
+                    idx_rest = list(set(idx_all) - set(idx_test_cells))
+                    idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train, replace=False)
+                elif cell_type == 'endstates':
+                    endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
+                    idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
+                    idx_not_endstates = data.obs[~data.obs.clusters.isin(endstates)].index.values
+                    idx_test_cells = idx_enstates
+                    idx_train_cells = idx_not_endstates
+                elif cell_type == 'earlystates':
+                    earlystates = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP']
+                    idx_earlystates = data.obs[data.obs.clusters.isin(earlystates)].index.values
+                    idx_not_earlystates = data.obs[~data.obs.clusters.isin(earlystates)].index.values
+                    idx_test_cells = idx_earlystates
+                    idx_train_cells = idx_not_earlystates
+                elif cell_type == 'multiple':
+                    multiple = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP', 'Alpha', 'Beta', 'Delta']
+                    idx_multiple = data.obs[data.obs.clusters.isin(multiple)].index.values
+                    idx_not_multiple = data.obs[~data.obs.clusters.isin(multiple)].index.values
+                    idx_test_cells = idx_multiple
+                    idx_train_cells = idx_not_multiple
+
+                # preprocess
+                p = Preprocessor(data, config.n_bin, self.min_counts_genes, config.n_token)
+                p.permute()
+                p.preprocess()
+                p.get_mean_number_of_nonZero_bins()
+                tokens = p.get_gene_tokens()
+                data = p.binned_data
+                mean_non_zero_bins = p.mean_non_zero_bins
+            # preprocessing already done and saved on disc
+            else:
+                # load preprocessed
+                print(f'path to preprocessed data:\n {self.path_preprocessed}')
+                data = np.load(self.path_preprocessed)
+                mean_non_zero_bins = self.mean_non_zero_bins
+                # split
                 n_train = int(0.9 * len(data))
                 n_test = int(len(data) - n_train)
-                idx_all = np.arange(len(data))
+                idx_all = np.arange(len(data))./
+                print(f'idx_all: {len(idx_all)}')
                 idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
+                print(f'idx_test_cells: {len(idx_test_cells)}')
                 idx_rest = list(set(idx_all) - set(idx_test_cells))
-                idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train, replace=False)
-            elif cell_type == 'endstates':
-                endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
-                idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
-                idx_not_endstates = data.obs[~data.obs.clusters.isin(endstates)].index.values
-                idx_test_cells = idx_enstates
-                idx_train_cells = idx_not_endstates
-            elif cell_type == 'earlystates':
-                earlystates = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP']
-                idx_earlystates = data.obs[data.obs.clusters.isin(earlystates)].index.values
-                idx_not_earlystates = data.obs[~data.obs.clusters.isin(earlystates)].index.values
-                idx_test_cells = idx_earlystates
-                idx_train_cells = idx_not_earlystates
-            elif cell_type == 'multiple':
-                multiple = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP', 'Alpha', 'Beta', 'Delta']
-                idx_multiple = data.obs[data.obs.clusters.isin(multiple)].index.values
-                idx_not_multiple = data.obs[~data.obs.clusters.isin(multiple)].index.values
-                idx_test_cells = idx_multiple
-                idx_train_cells = idx_not_multiple
-
-            # split for omit cell type
-            else:
-                idx_test_cells = data.obs[data.obs.clusters == cell_type].index.values
-                idx_train_cells = data.obs[data.obs.clusters != cell_type].index.values
-                idx_test_cells = np.random.choice(idx_test_cells, size=min_test_set, replace=False)
-                idx_train_cells = np.random.choice(idx_train_cells, size=n_train_set, replace=False)
-
-            # preprocess
-            p = Preprocessor(data, config.n_bin, self.min_counts_genes, config.n_token)
-            p.permute()
-            p.preprocess()
-            p.get_mean_number_of_nonZero_bins()
-            tokens = p.get_gene_tokens()
-            data = p.binned_data
+                print(f'idx_rest: {len(idx_rest)}\n{idx_rest}\n')
+                idx_train_cells = np.random.choice(np.array(idx_rest[:20]), size=n_train, replace=False)
+                print(f'idx_train_cells: {len(idx_train_cells)}\n{idx_train_cells[:20]}\n')
             # split data
+            mask_prob = mean_non_zero_bins*2/config.n_token
             print(f'number of tokens: {config.n_token}')
-            print(f'number of non zero bins: {p.mean_non_zero_bins}')
-            print(f'masked_genes/all_genes={p.mean_non_zero_bins*2/config.n_token}')
+            print(f'number of non zero bins: {mean_non_zero_bins}')
+            print(f'masked_genes/all_genes={mask_prob}')
             print(f'randomization: {config.randomization}')
             # adapt mean_non_zero_bins to desired mlm_prob
-            n_mask = int((config.n_token * config.mlm_probability) // 2)
+            n_mask = mean_non_zero_bins*2
+            # keep masking prob below given masking prob
+            if mask_prob > config.mlm_probability:
+                n_mask = int((config.n_token * config.mlm_probability) // 2)
+
             print(f'adapted masking={n_mask * 2 / config.n_token}')
             trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, config.n_token)
             testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
+            print(f'len trainset: {len(trainset)}')
+            print(f'len testset: {len(testset)}')
+            sys.exit()
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -202,7 +228,7 @@ class Trainer:
                 train_loss /= config.batch_size
                 test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
                                                                            , config.randomization, config.mask_type)
-                print(f'epoch: {epoch + 1}/{self.n_epoch}, train error = {train_loss:.4f}, test error = {test_loss:.4f}'
+                print(f'epoch: {epoch + 1}/{config.n_epoch}, train error = {train_loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(train_loss, test_loss, test_accuracy, epoch)
                 # get model predictions
@@ -214,7 +240,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            #torch.save(m.state_dict(), '../data/model_4.pth')
+            #torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_small_1Mio.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -278,6 +304,8 @@ if __name__ == '__main__':
     min_counts_genes = 10
     mlm_probability = None
     seed = 1234
+    mean_non_zero_bins = 24
+    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_processed_1000.npy'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
     dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/heart.h5ad'
     # create model
@@ -299,7 +327,9 @@ if __name__ == '__main__':
         mlm_probability=mlm_probability,
         seed=seed,
         subset=None,
-        test_mode=False
+        test_mode=False,
+        mean_non_zero_bins=mean_non_zero_bins,
+        path_preprocessed=path_preprocessed
     )
 
     trainer.train(dataset_path)

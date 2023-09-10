@@ -47,5 +47,20 @@ print(f'attn_mask:\n{attn_mask} ')
 
 # a = torch.tensor([[[2,1], [2,2], [3,1]]])
 
-emb = nn.Embedding(10,10)
-print(emb(torch.LongTensor([[0,2,-1,4,4]])))
+# emb = nn.Embedding(10,10)
+# print(emb(torch.LongTensor([[0,2,-1,4,4]])))
+
+print(np.random.choice(np.arange(10), size=(10,10)))
+
+shape = (10,10)
+probability_matrix = torch.full(shape, 0.9)
+mask = torch.bernoulli(probability_matrix).bool()
+print(mask)
+
+random_ints = torch.tensor(np.random.choice(np.arange(10), size=(10,10)))
+random_ints[mask] = 0
+print(random_ints)
+# print(random_ints[mask])
+# exp_data = torch.tensor(size=(10,10))
+# exp_data[mask] = random_ints
+# print(exp_data)
