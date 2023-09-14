@@ -39,11 +39,12 @@ class TransformerModel(nn.Module):
         self.activation = "relu"
         #self.dropout = dropout
         self.n_input_bins = n_input_bins
+        self.n_token = n_token
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # define the gene encoder
-        self.encoder = GeneEncoder(n_token, d_model)
-        self.value_encoder = ValueEncoder(self.n_input_bins+1, d_model) # , padding_idx=self.n_input_bins, +1 beacuse we added bin -1 as mask_value
+        self.encoder = GeneEncoder(self.n_token, self.d_model)
+        self.value_encoder = ValueEncoder(self.n_input_bins+1, self.d_model) # , padding_idx=self.n_input_bins, +1 beacuse we added bin -1 as mask_value
         # define the transformer encoder
         encoder_layers = TransformerEncoderLayer(d_model=d_model,
                                                  nhead=self.nhead,
@@ -55,7 +56,7 @@ class TransformerModel(nn.Module):
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         # one decoder for all genes
         self.decoder = ExprDecoder(self.d_model, self.n_input_bins)
-        self.index = np.arange(n_token)
+        self.index = np.arange(self.n_token)
 
         self.loss = nn.CrossEntropyLoss()
         self.acc_function = Accuracy(task='multiclass', num_classes=self.n_input_bins)

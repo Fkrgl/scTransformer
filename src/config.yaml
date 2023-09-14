@@ -7,7 +7,7 @@ parameters:
     n_epoch:
         value: 2
     mlm_probability:
-        value: 0.03
+        values: [0.03, 0.05, 0.1, 0.15]
     n_bin:
         value: 100
     n_token:

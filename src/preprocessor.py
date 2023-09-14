@@ -97,7 +97,7 @@ class Preprocessor:
             all_binned += list(binned_row)
         # construct matrix from binned rows
         self.binned_data = np.stack(binned_rows)
-        #self.create_bin_mapping(bins)
+        self.create_bin_mapping(bins)
 
         # all_binned = np.array(all_binned)
         # c = Counter(list(all_binned[all_binned > 0]))
@@ -144,12 +144,12 @@ class Preprocessor:
         return digits
 
     def create_bin_mapping(self, bins):
+        bins = np.hstack((np.array([0]), bins))
         bins_to_value = {}
         for i in range(len(bins)-1):
             bins_to_value[i] = (bins[i] + bins[i+1]) / 2
         bins_to_value[0] = 0
-        print(bins_to_value)
-
+        self.bin_to_expression = bins_to_value
 
     def permute(self):
         """
@@ -179,6 +179,11 @@ class Preprocessor:
         # save array
         np.save(path_out, self.binned_data)
 
+    def save_tokens(self, path_tokens) -> None:
+        tokens = self.get_gene_tokens()
+        tokens = np.asarray(tokens)
+        np.save(path_tokens, tokens)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -191,6 +196,9 @@ if __name__ == '__main__':
     parser.add_argument('-path_out',
                         type=str,
                         help='path to file for preprocessed data')
+    parser.add_argument('-path_token',
+                        type=str,
+                        help='path to file with saved tokens')
     args = parser.parse_args()
     # load dataset
     anndata = scp.read_h5ad(args.path_in)
@@ -200,6 +208,7 @@ if __name__ == '__main__':
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
     if args.path_out:
         p.save_processed_data(args.path_out)
+        p.save_tokens(args.path_token)
     # print(p.binned_data)
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
