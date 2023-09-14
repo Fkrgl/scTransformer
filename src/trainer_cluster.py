@@ -32,6 +32,7 @@ class Trainer:
                  mlm_probability: int,
                  mean_non_zero_bins: int,
                  path_preprocessed: str,
+                 path_tokens: str,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
                  test_mode: Optional[bool] = False,
@@ -78,6 +79,7 @@ class Trainer:
         self.test_mode = test_mode
         self.mean_non_zero_bins = mean_non_zero_bins
         self.path_preprocessed = path_preprocessed
+        self.path_tokens = path_tokens
         print(f'cuda available: {torch.cuda.is_available()}')
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
@@ -123,7 +125,7 @@ class Trainer:
                     idx_all = np.arange(len(data))
                     idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
                     idx_rest = list(set(idx_all) - set(idx_test_cells))
-                    idx_train_cells = np.random.choice(np.array(idx_rest), size=n_train, replace=False)
+                    idx_train_cells = idx_rest
                 elif cell_type == 'endstates':
                     endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
                     idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
@@ -160,32 +162,29 @@ class Trainer:
                 # split
                 n_train = int(0.9 * len(data))
                 n_test = int(len(data) - n_train)
-                idx_all = np.arange(len(data))./
-                print(f'idx_all: {len(idx_all)}')
+                idx_all = np.arange(len(data))
                 idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
-                print(f'idx_test_cells: {len(idx_test_cells)}')
                 idx_rest = list(set(idx_all) - set(idx_test_cells))
-                print(f'idx_rest: {len(idx_rest)}\n{idx_rest}\n')
-                idx_train_cells = np.random.choice(np.array(idx_rest[:20]), size=n_train, replace=False)
-                print(f'idx_train_cells: {len(idx_train_cells)}\n{idx_train_cells[:20]}\n')
+                idx_train_cells = idx_rest
+                tokens = np.load(self.path_tokens, allow_pickle=True)
             # split data
-            mask_prob = mean_non_zero_bins*2/config.n_token
-            print(f'number of tokens: {config.n_token}')
-            print(f'number of non zero bins: {mean_non_zero_bins}')
-            print(f'masked_genes/all_genes={mask_prob}')
-            print(f'randomization: {config.randomization}')
-            # adapt mean_non_zero_bins to desired mlm_prob
-            n_mask = mean_non_zero_bins*2
-            # keep masking prob below given masking prob
-            if mask_prob > config.mlm_probability:
-                n_mask = int((config.n_token * config.mlm_probability) // 2)
+            # mask_prob = mean_non_zero_bins*2/config.n_token
+            # print(f'number of tokens: {config.n_token}')
+            # print(f'number of non zero bins: {mean_non_zero_bins}')
+            # print(f'masked_genes/all_genes={mask_prob}')
+            # print(f'randomization: {config.randomization}')
+            # # adapt mean_non_zero_bins to desired mlm_prob
+            # n_mask = mean_non_zero_bins*2
+            # # keep masking prob below given masking prob
+            # if mask_prob > config.mlm_probability:
+            #     n_mask = int((config.n_token * config.mlm_probability) // 2)
+            # print(f'adapted masking={n_mask * 2 / config.n_token}')
 
-            print(f'adapted masking={n_mask * 2 / config.n_token}')
-            trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, config.n_token)
-            testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
+            print(f'mlm_prob: {config.mlm_probability}')
+            trainset = scDataSet(data[idx_train_cells], config.n_bin, config.mlm_probability, config.n_token)
+            testset = scDataSet(data[idx_test_cells], config.n_bin, config.mlm_probability, config.n_token)
             print(f'len trainset: {len(trainset)}')
             print(f'len testset: {len(testset)}')
-            sys.exit()
             # encode gene names
             n_token = len(tokens)
             encode, decode = self.get_gene_encode_decode(tokens)
@@ -210,7 +209,7 @@ class Trainer:
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
-                train_loss = 0
+                train_loss = []
                 for i, (x_val, masked_x_val, attn_mask, mask) in enumerate(train_loader):
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
@@ -220,12 +219,12 @@ class Trainer:
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
-                    train_loss += loss.item()
+                    train_loss.append(loss.item())
 
                 # after each epoch, get test loss
                 # add if clausal to evaluate only after x epochs
                 # print('test..')
-                train_loss /= config.batch_size
+                train_loss = np.mean(train_loss)
                 test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
                                                                            , config.randomization, config.mask_type)
                 print(f'epoch: {epoch + 1}/{config.n_epoch}, train error = {train_loss:.4f}, test error = {test_loss:.4f}'
@@ -305,9 +304,10 @@ if __name__ == '__main__':
     mlm_probability = None
     seed = 1234
     mean_non_zero_bins = 24
-    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_processed_1000.npy'
+    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_processed_1500.npy'
+    path_tokens = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/token_1500.npy'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
-    dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/heart.h5ad'
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio.h5ad'
     # create model
     trainer = Trainer(
         batch_size=batch_size,
@@ -329,7 +329,8 @@ if __name__ == '__main__':
         subset=None,
         test_mode=False,
         mean_non_zero_bins=mean_non_zero_bins,
-        path_preprocessed=path_preprocessed
+        path_preprocessed=path_preprocessed,
+        path_tokens=path_tokens
     )
 
     trainer.train(dataset_path)

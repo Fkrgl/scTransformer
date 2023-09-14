@@ -7,7 +7,7 @@ parameters:
     n_epoch:
         value: 2
     mlm_probability:
-        value: 0.03
+        values: [0.03, 0.05, 0.1, 0.15]
     n_bin:
         value: 100
     n_token:
@@ -15,13 +15,13 @@ parameters:
     n_emb:
         value: 128
     n_head:
-        value: 4
+        value: 8
     dim_feedforward:
         value: 32
     n_layer:
         value: 4
     batch_size:
-        value: 16
+        value: 12
     cell_type:
         value: 'None'
     mask_type:
@@ -29,6 +29,6 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'heart 1000 token'
+        value: 'heart 1500 token'
     do_preprocessing:
         value: False

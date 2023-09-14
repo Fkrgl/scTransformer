@@ -1,5 +1,4 @@
 import numpy as np
-from torch_two_sample import MMDStatistic
 import torch
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
