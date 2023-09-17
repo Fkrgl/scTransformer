@@ -9,6 +9,7 @@ import math
 import torch
 from collections import Counter
 import matplotlib.pyplot as plt
+from Sampler import Sampler
 
 
 class Preprocessor:
@@ -199,16 +200,29 @@ if __name__ == '__main__':
     parser.add_argument('-path_token',
                         type=str,
                         help='path to file with saved tokens')
+    parser.add_argument('-subsample',
+                        metavar='N',
+                        type=int,
+                        help='if flack is set, the dataset is subsampled with the specified number of samples')
     args = parser.parse_args()
+
     # load dataset
-    anndata = scp.read_h5ad(args.path_in)
+    if args.subsample:
+        sampler = Sampler()
+        sampler.read(args.path_in)
+        anndata = sampler.sample(args.subsample)
+    else:
+        anndata = scp.read_h5ad(args.path_in)
+
+    # preprocess
     p = Preprocessor(anndata, 100, n_hvg=args.n_hvg)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
     if args.path_out:
         p.save_processed_data(args.path_out)
-        p.save_tokens(args.path_token)
+        if args.path_token:
+            p.save_tokens(args.path_token)
     # print(p.binned_data)
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')

@@ -14,6 +14,7 @@ import sys
 import argparse
 import evaluate_samples
 from metrics import c2st
+from sklearn.decomposition import PCA
 
 def get_gene_encode_decode(token_names: list):
     """
@@ -68,7 +69,9 @@ def generate_samples(p, dataset, x_src, model, n_samples, use_val_emb = True):
     for i in range(n_samples):
         sample, _, a, b = dataset.__getitem__(i)
         data_preprocessed.append(to_expression(sample.detach().numpy()))
-        sample_profile = model.generate(x_src, sample, bins, use_val_emb)
+        # mask where each value is False
+        mask = torch.tensor(np.zeros_like(b, dtype=bool))
+        sample_profile = model.generate(x_src, sample, a, mask, 'src_key_padding_mask', bins, False)
         expression = to_expression(sample_profile)
         data_generated.append(expression)
     expression_profiles = np.vstack(data_generated)
@@ -82,22 +85,27 @@ def get_exp_profiles(p, dataset):
     bin_to_expression = p.bin_to_expression
     to_expression = lambda bins: [bin_to_expression[b] for b in bins]
     data_preprocessed = []
+    print(len(dataset))
     for i in range(len(dataset)):
-        sample, _ = dataset.__getitem__(i)
+        sample, _, _, _ = dataset.__getitem__(i)
         data_preprocessed.append(to_expression(sample.detach().numpy()))
 
     data_preprocessed = np.vstack(data_preprocessed)
     return data_preprocessed
 
-def get_train_test_set(data, n_bin, n_mask, n_token, split=0.9):
+def get_train_test_set(data, n_bin, n_mask, n_token, n_samples, split=0.9):
     np.random.seed(42)
+    # split
     n_train = int(split * len(data))
     n_test = int(len(data) - n_train)
     idx_all = np.arange(len(data))
     idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
     idx_rest = list(set(idx_all) - set(idx_test_cells))
     idx_train_cells = idx_rest
-
+    # subsample
+    idx_test_cells = np.random.choice(idx_test_cells, size=n_samples, replace=False)
+    idx_train_cells = np.random.choice(idx_train_cells, size=n_samples, replace=False)
+    # create datasets
     trainset = scDataSet(data[idx_train_cells], n_bin, n_mask, n_token)
     testset = scDataSet(data[idx_test_cells], n_bin, n_mask, n_token)
     return trainset, testset
@@ -115,10 +123,74 @@ def evaluate(X_train, X_test, Y):
     mmd_XY = evaluate_samples.MMD(X, Y, kernel='rbf')
     c2st_XX = c2st(X, X_test, classifier='mlp')
     c2st_XY = c2st(X, Y, classifier='mlp')
+    c2st_rf_XX = c2st(X, X_test, classifier='rf')
+    c2st_rf_XY = c2st(X, Y, classifier='rf')
     # report metrics
+    print('sample / generated  |  sample / control')
     print(f'euclid\nval={euclid_XY} | ref={euclid_XX}\n')
     print(f'MMD\nval={mmd_XY} | ref={mmd_XX}\n')
     print(f'c2st with mlp\nval={c2st_XY} | ref={c2st_XX}\n')
+    print(f'c2st with rf\nval={c2st_rf_XY} | ref={c2st_rf_XX}\n')
+
+# def generate_color_vector(anndata):
+#     clusters = anndata.obs.clusters
+#     categories = anndata.obs.clusters.unique()
+#     cmap = plt.cm.get_cmap('hsv', len(categories) + 1)
+#     cluster_to_color = {categories[i]: cmap(i) for i in range(len(categories))}
+#     cluster_to_color['Alpha'] = 'yellow'
+#     color = [cluster_to_color[clu] for clu in clusters]
+#     return cluster_to_color, color
+def plot_UMAP(generted_expression_profiles, src_expression_profiles, src_control, path):
+    umap_2d = UMAP(n_components=2, init='random', random_state=0)
+    src_expression_profiles = np.round(src_expression_profiles, decimals=5)
+    proj_2d = umap_2d.fit_transform(np.vstack([src_expression_profiles, generted_expression_profiles]))
+    n_src = src_expression_profiles.shape[0]
+    print(f'n_src: {n_src}')
+    fig, ax = plt.subplots(2, 2, figsize=(10, 4), sharex=True, sharey=True)
+    # sample vs generated
+    ax[0,0].scatter(proj_2d[:n_src, 0], proj_2d[:n_src, 1], c='blue', alpha=.5, label='data')
+    ax[0,0].scatter(proj_2d[n_src:, 0], proj_2d[n_src:, 1], c='yellow', alpha=.5, label='generated')
+    ax[0,0].legend()
+    fig.suptitle(f'umap of binned expression profiles')
+    fig.supxlabel('umap 1')
+    fig.supylabel('umap 2')
+    ax[0,1].scatter(proj_2d[:n_src, 0], proj_2d[:n_src, 1], alpha=.5)
+    # sample vs control
+    umap_2d = UMAP(n_components=2, init='random', random_state=0)
+    src_control = np.round(src_control, decimals=5)
+    proj_2d = umap_2d.fit_transform(np.vstack([src_expression_profiles, src_control]))
+
+    ax[1,0].scatter(proj_2d[:n_src, 0], proj_2d[:n_src, 1], c='blue', alpha=.5, label='data')
+    ax[1,0].scatter(proj_2d[n_src:, 0], proj_2d[n_src:, 1], c='yellow', alpha=.5, label='control')
+    ax[1,1].scatter(proj_2d[:n_src, 0], proj_2d[:n_src, 1], alpha=.5)
+
+    plt.savefig(path)
+
+def plot_dataset(p, dataset, n_components=50):
+    # translate bin into expression data
+    print(dataset.data)
+    print(dataset.data.shape)
+    data = get_exp_profiles(p, dataset)
+    data = np.round(data, decimals=5)
+    # perform pca
+    print(data)
+    print(data.shape)
+    pca = PCA(n_components=n_components)
+    data_pca = pca.fit_transform(data)
+    data_pca = np.round(data_pca, decimals=5)
+    # UMAP
+    umap_2d_pca = UMAP(n_components=2, init='random', random_state=0)
+    proj_2d_pca = umap_2d_pca.fit_transform(data_pca)
+    umap_2d = UMAP(n_components=2, init='random', random_state=0)
+    proj_2d = umap_2d.fit_transform(data)
+
+    fig, ax = plt.subplots(2, 1, figsize=(10, 5), sharex=True, sharey=True)
+    ax[0,0].scatter(proj_2d[0], proj_2d[1], alpha=.5, label='data')
+    ax[1,0].scatter(proj_2d_pca[0], proj_2d_pca[1], alpha=.5, label='data')
+    ax[0,0].set_title('dataset')
+    ax[1,0].set_title('dataset with pca')
+
+    plt.savefig('/home/claassen/cxb257/scTransformer/fig/spleen_processed.png')
 
 
 
@@ -126,7 +198,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('model_path', type=str)
     parser.add_argument('data_path', type=str)
+    parser.add_argument('n', type=int, help='number of samples to generate')
+    parser.add_argument('--umap_path', type=str, help='path to save UMAP figure of sample vs. generated and '
+                                                      'sample vs. control')
     args = parser.parse_args()
+    print(args.model_path)
 
     # model parameters
     d_model = 128
@@ -138,17 +214,26 @@ if __name__ == '__main__':
     min_counts_genes = 10
 
     # generate samples
+    n_samples = args.n
     model = load_model(args.model_path, d_model, dim_feedforward, nlayers, n_input_bins, n_token, nhead)
-    data = load_data(args.data_path)
-    p = process_data(data, n_input_bins, min_counts_genes, n_token)
+    anndata = load_data(args.data_path)
+    p = process_data(anndata, n_input_bins, min_counts_genes, n_token)
     data = p.binned_data
-    trainset, testset = get_train_test_set(data, n_input_bins, p.mean_non_zero_bins//2, n_token, split=0.9)
+    trainset, testset = get_train_test_set(data, n_input_bins, p.mean_non_zero_bins//2, n_token, n_samples, split=0.5)
     tokens = p.get_gene_tokens()
     encode, decode = get_gene_encode_decode(tokens)
     x_src = torch.tensor(encode(tokens))
-    n_samples = 1000
     train, Y = generate_samples(p, trainset, x_src, model, n_samples)
     test = get_exp_profiles(p, testset)
 
     # evaluate samples
+    print(f'train: {train.shape}')
+    print(f'test: {test.shape}')
+    print(f'Y: {Y.shape}')
     evaluate(train, test, Y)
+
+    # plot UMAP
+    if args.umap_path:
+        plot_UMAP(train, Y, test, args.umap_path)
+    dataset = scDataSet(data, n_input_bins, p.mean_non_zero_bins//2, n_token)
+    plot_dataset(p, dataset)

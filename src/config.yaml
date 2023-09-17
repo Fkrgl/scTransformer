@@ -5,23 +5,23 @@ metric:
   goal: minimize
 parameters:
     n_epoch:
-        value: 2
+        value: 6
     mlm_probability:
-        values: [0.03, 0.05, 0.1, 0.15]
+        value: 0.03
     n_bin:
         value: 100
     n_token:
         value: 1500
     n_emb:
-        value: 128
+        value: 256
     n_head:
         value: 8
     dim_feedforward:
-        value: 32
+        value: 64
     n_layer:
         value: 4
     batch_size:
-        value: 12
+        value: 11
     cell_type:
         value: 'None'
     mask_type:
@@ -29,6 +29,8 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'heart 1500 token'
+        value: 'heart 1500 token / 6 epochs'
     do_preprocessing:
         value: False
+    extern_testset:
+        value: True

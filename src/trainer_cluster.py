@@ -168,21 +168,20 @@ class Trainer:
                 idx_train_cells = idx_rest
                 tokens = np.load(self.path_tokens, allow_pickle=True)
             # split data
-            # mask_prob = mean_non_zero_bins*2/config.n_token
-            # print(f'number of tokens: {config.n_token}')
-            # print(f'number of non zero bins: {mean_non_zero_bins}')
-            # print(f'masked_genes/all_genes={mask_prob}')
-            # print(f'randomization: {config.randomization}')
-            # # adapt mean_non_zero_bins to desired mlm_prob
-            # n_mask = mean_non_zero_bins*2
-            # # keep masking prob below given masking prob
-            # if mask_prob > config.mlm_probability:
-            #     n_mask = int((config.n_token * config.mlm_probability) // 2)
-            # print(f'adapted masking={n_mask * 2 / config.n_token}')
+            mask_prob = mean_non_zero_bins*2/config.n_token
+            print(f'number of tokens: {config.n_token}')
+            print(f'number of non zero bins: {mean_non_zero_bins}')
+            print(f'masked_genes/all_genes={mask_prob}')
+            print(f'randomization: {config.randomization}')
+            # adapt mean_non_zero_bins to desired mlm_prob
+            n_mask = mean_non_zero_bins*2
+            # keep masking prob below given masking prob
+            if mask_prob > config.mlm_probability:
+                n_mask = int((config.n_token * config.mlm_probability) // 2)
+            print(f'adapted masking={n_mask * 2 / config.n_token}')
 
-            print(f'mlm_prob: {config.mlm_probability}')
-            trainset = scDataSet(data[idx_train_cells], config.n_bin, config.mlm_probability, config.n_token)
-            testset = scDataSet(data[idx_test_cells], config.n_bin, config.mlm_probability, config.n_token)
+            trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, config.n_token)
+            testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
             print(f'len trainset: {len(trainset)}')
             print(f'len testset: {len(testset)}')
             # encode gene names
@@ -239,7 +238,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            #torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_small_1Mio.pth')
+            #torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_1Mio_6ep.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \

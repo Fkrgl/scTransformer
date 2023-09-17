@@ -7,4 +7,9 @@
 #SBATCH -o /mnt/qb/work/claassen/cxb257/out/%j.out # Standard output - make sure this is not on $HOME
 #SBATCH -e /mnt/qb/work/claassen/cxb257/err/%j.err # Standard error - make sure this is not on $HOME
 
-python generate_samples.py /mnt/qb/work/claassen/cxb257/models/spleen_t500_ep1.pth /mnt/qb/work/claassen/cxb257/data/cellxgene/spleen.h5ad
+MODEL=$1
+DATA=$2
+N_SAMPLES=$3
+UMAP_PATH=$4
+
+python generate_samples.py $MODEL $DATA $N_SAMPLES --umap_path $UMAP_PATH

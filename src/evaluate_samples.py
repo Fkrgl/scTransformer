@@ -4,6 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from metrics import c2st
 
+
 def euclidean_distance_centroids(real: torch.tensor, generated: torch.tensor):
     '''
     function calculates the centroids of each data set. The centroid is obtained by the mean along the gene axis over
@@ -104,6 +105,7 @@ def MMD(x, y, kernel):
             XY += torch.exp(-0.5 * dxy / a)
 
     return torch.mean(XX + YY - 2. * XY)
+
 
 X = np.random.choice(np.arange(100), size=(1000,200)).astype(float)
 Y = np.random.choice(np.arange(100, 200), size=(1000,200)).astype(float)
