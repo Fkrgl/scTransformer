@@ -6,6 +6,7 @@ import scanpy as scp
 import sys
 import argparse
 import math
+import json
 import torch
 from collections import Counter
 import matplotlib.pyplot as plt
@@ -23,6 +24,7 @@ class Preprocessor:
                 n_bins: int,
                 min_counts_genes: int = 10,
                 n_hvg: int = 200,
+                save_tokens = False
                 ):
         """
 
@@ -48,6 +50,7 @@ class Preprocessor:
         self.n_bins = n_bins
         self.binned_data = None
         self.mean_non_zero_bins = None
+        self.save_tokens = save_tokens
 
     def preprocess(self):
         # filter by counts of genes
@@ -181,14 +184,26 @@ class Preprocessor:
         np.save(path_out, self.binned_data)
 
     def save_tokens(self, path_tokens) -> None:
+        '''
+        function generates a dictrionary that maps the gene names to unique ids
+        '''
         tokens = self.get_gene_tokens()
         tokens = np.asarray(tokens)
-        np.save(path_tokens, tokens)
+        vocab = {token : i+1 for i, token in enumerate(tokens)}
+        vocab["PAD"] = 0
+        with open(path_tokens, 'w') as f:
+            # write the dictionary to the file in JSON format
+            json.dump(vocab, f)
+        #np.save(path_tokens, tokens)
 
     def subsample(self, n_sample):
         np.random.seed(42)
         random_indices = np.random.choice(self.binned_data.shape[0], n_sample, replace=False)
         self.binned_data = self.binned_data[random_indices, :]
+
+    def save_vocab(self):
+        vocab = {}
+
 
 
 if __name__ == '__main__':
@@ -206,6 +221,10 @@ if __name__ == '__main__':
                         type=str,
                         help='path to file with saved tokens')
     parser.add_argument('-subsample',
+                        metavar='N',
+                        type=int,
+                        help='if flack is set, the dataset is subsampled with the specified number of samples')
+    parser.add_argument('-save_vocab',
                         metavar='N',
                         type=int,
                         help='if flack is set, the dataset is subsampled with the specified number of samples')
@@ -228,8 +247,8 @@ if __name__ == '__main__':
     # save to file
     if args.path_out:
         p.save_processed_data(args.path_out)
-        if args.path_token:
-            p.save_tokens(args.path_token)
+    if args.path_token:
+        p.save_tokens(args.path_token)
     # print(p.binned_data)
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
