@@ -23,8 +23,7 @@ class Preprocessor:
                 anndata: AnnData,
                 n_bins: int,
                 min_counts_genes: int = 10,
-                n_hvg: int = 200,
-                save_tokens = False
+                n_hvg: int = 200
                 ):
         """
 
@@ -50,7 +49,6 @@ class Preprocessor:
         self.n_bins = n_bins
         self.binned_data = None
         self.mean_non_zero_bins = None
-        self.save_tokens = save_tokens
 
     def preprocess(self):
         # filter by counts of genes
@@ -201,8 +199,6 @@ class Preprocessor:
         random_indices = np.random.choice(self.binned_data.shape[0], n_sample, replace=False)
         self.binned_data = self.binned_data[random_indices, :]
 
-    def save_vocab(self):
-        vocab = {}
 
 
 
@@ -225,16 +221,15 @@ if __name__ == '__main__':
                         type=int,
                         help='if flack is set, the dataset is subsampled with the specified number of samples')
     parser.add_argument('-save_vocab',
-                        metavar='N',
-                        type=int,
-                        help='if flack is set, the dataset is subsampled with the specified number of samples')
+                        type=str,
+                        help='if flack is set, the tokens of the dataset are saved as the vocab in a json file')
     args = parser.parse_args()
 
     # load dataset
     anndata = scp.read_h5ad(args.path_in)
 
     # preprocess
-    p = Preprocessor(anndata, 100, n_hvg=args.n_hvg)
+    p = Preprocessor(anndata, args.n_hvg, n_hvg=args.n_hvg)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
@@ -247,8 +242,8 @@ if __name__ == '__main__':
     # save to file
     if args.path_out:
         p.save_processed_data(args.path_out)
-    if args.path_token:
-        p.save_tokens(args.path_token)
+    if args.save_vocab:
+        p.save_tokens(args.save_vocab)
     # print(p.binned_data)
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')
