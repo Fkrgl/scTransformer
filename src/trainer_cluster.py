@@ -33,6 +33,7 @@ class Trainer:
                  mean_non_zero_bins: int,
                  path_preprocessed: str,
                  path_tokens: str,
+                 path_extern_testset: str,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
                  test_mode: Optional[bool] = False,
@@ -80,6 +81,7 @@ class Trainer:
         self.mean_non_zero_bins = mean_non_zero_bins
         self.path_preprocessed = path_preprocessed
         self.path_tokens = path_tokens
+        self.path_extern_testset = path_extern_testset
         print(f'cuda available: {torch.cuda.is_available()}')
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
@@ -158,6 +160,7 @@ class Trainer:
                 # load preprocessed
                 print(f'path to preprocessed data:\n {self.path_preprocessed}')
                 data = np.load(self.path_preprocessed)
+                print(f'loaded processed data shape: {data.shape}')
                 mean_non_zero_bins = self.mean_non_zero_bins
                 # split
                 n_train = int(0.9 * len(data))
@@ -179,9 +182,14 @@ class Trainer:
             if mask_prob > config.mlm_probability:
                 n_mask = int((config.n_token * config.mlm_probability) // 2)
             print(f'adapted masking={n_mask * 2 / config.n_token}')
-
-            trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, config.n_token)
-            testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
+            # use random split for test/train or all of the data as train and a extern set as test
+            if config.extern_testset:
+                test_data = np.load(self.path_extern_testset)
+                trainset = scDataSet(data, config.n_bin, n_mask, config.n_token)
+                testset = scDataSet(test_data, config.n_bin, n_mask, config.n_token)
+            else:
+                trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, config.n_token)
+                testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
             print(f'len trainset: {len(trainset)}')
             print(f'len testset: {len(testset)}')
             # encode gene names
@@ -238,7 +246,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            #torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_1Mio_6ep.pth')
+            #torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_1Mio_ep2.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -305,8 +313,9 @@ if __name__ == '__main__':
     mean_non_zero_bins = 24
     path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_processed_1500.npy'
     path_tokens = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/token_1500.npy'
+    path_extern_testset = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_100K_preprocessed_1500_testset.npy'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
-    dataset_path = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio.h5ad'
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/heart/heart_100K.h5ad'
     # create model
     trainer = Trainer(
         batch_size=batch_size,
@@ -329,7 +338,8 @@ if __name__ == '__main__':
         test_mode=False,
         mean_non_zero_bins=mean_non_zero_bins,
         path_preprocessed=path_preprocessed,
-        path_tokens=path_tokens
+        path_tokens=path_tokens,
+        path_extern_testset=path_extern_testset
     )
 
     trainer.train(dataset_path)

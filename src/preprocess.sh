@@ -13,7 +13,7 @@ OUT_PATH=$3
 TOKEN_PATH=$4
 
 # create train set
-# python preprocessor.py $IN_PATH $N_HVG -path_out $OUT_PATH -path_token $TOKEN_PATH
+python preprocessor.py $IN_PATH $N_HVG -path_out $OUT_PATH -path_token $TOKEN_PATH
 
 # create test set
-python preprocessor.py $IN_PATH $N_HVG -path_out $OUT_PATH -subsample 100000
+#python preprocessor.py $IN_PATH $N_HVG -path_out $OUT_PATH -subsample 100000

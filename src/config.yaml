@@ -5,7 +5,7 @@ metric:
   goal: minimize
 parameters:
     n_epoch:
-        value: 6
+        value: 2
     mlm_probability:
         value: 0.03
     n_bin:
@@ -29,7 +29,7 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'heart 1500 token / 6 epochs'
+        value: 'heart1Mio / large model / 1500 token'
     do_preprocessing:
         value: False
     extern_testset:

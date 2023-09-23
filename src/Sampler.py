@@ -37,4 +37,5 @@ if __name__ == '__main__':
     sampler = Sampler()
     sampler.read(args.in_path)
     sub_data = sampler.sample(args.n_sample)
+    print(f'shape of data: {sub_data}')
     sampler.write(sub_data, args.out_path)

@@ -185,6 +185,11 @@ class Preprocessor:
         tokens = np.asarray(tokens)
         np.save(path_tokens, tokens)
 
+    def subsample(self, n_sample):
+        np.random.seed(42)
+        random_indices = np.random.choice(self.binned_data.shape[0], n_sample, replace=False)
+        self.binned_data = self.binned_data[random_indices, :]
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -207,18 +212,20 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     # load dataset
-    if args.subsample:
-        sampler = Sampler()
-        sampler.read(args.path_in)
-        anndata = sampler.sample(args.subsample)
-    else:
-        anndata = scp.read_h5ad(args.path_in)
+    anndata = scp.read_h5ad(args.path_in)
 
     # preprocess
     p = Preprocessor(anndata, 100, n_hvg=args.n_hvg)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
+    print(f'sahpe: {p.binned_data.shape}')
+
+    # subsample
+    if args.subsample:
+        p.subsample(args.subsample)
+
+    # save to file
     if args.path_out:
         p.save_processed_data(args.path_out)
         if args.path_token:

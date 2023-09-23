@@ -181,17 +181,20 @@ def plot_dataset(p, dataset, n_components=50):
     # UMAP
     umap_2d_pca = UMAP(n_components=2, init='random', random_state=0)
     proj_2d_pca = umap_2d_pca.fit_transform(data_pca)
-    umap_2d = UMAP(n_components=2, init='random', random_state=0)
-    proj_2d = umap_2d.fit_transform(data)
+    # umap_2d = UMAP(n_components=2, init='random', random_state=0)
+    # proj_2d = umap_2d.fit_transform(data)
 
-    fig, ax = plt.subplots(2, 1, figsize=(10, 5), sharex=True, sharey=True)
-    ax[0,0].scatter(proj_2d[0], proj_2d[1], alpha=.5, label='data')
-    ax[1,0].scatter(proj_2d_pca[0], proj_2d_pca[1], alpha=.5, label='data')
-    ax[0,0].set_title('dataset')
-    ax[1,0].set_title('dataset with pca')
+    fig = plt.figure(figsize=(10, 7))
+    plt.scatter(proj_2d_pca[:,0], proj_2d_pca[:,1], alpha=.3, label='data')
+    plt.title('UMAP of spleen dataset (with PCA)')
 
-    plt.savefig('/home/claassen/cxb257/scTransformer/fig/spleen_processed.png')
+    plt.savefig('/home/claassen/cxb257/scTransformer/fig/spleen_processed_pca.png')
 
+def save_exp_profiles(original, generated, path: str):
+    if not path.endswith('/'):
+        path += '/'
+    np.save(path + 'original.npy', original)
+    np.save(path + 'generated.npy', generated)
 
 
 if __name__ == '__main__':
@@ -201,6 +204,7 @@ if __name__ == '__main__':
     parser.add_argument('n', type=int, help='number of samples to generate')
     parser.add_argument('--umap_path', type=str, help='path to save UMAP figure of sample vs. generated and '
                                                       'sample vs. control')
+    parser.add_argument('--o', type=str, help='output dir for expression profiles')
     args = parser.parse_args()
     print(args.model_path)
 
@@ -226,12 +230,15 @@ if __name__ == '__main__':
     train, Y = generate_samples(p, trainset, x_src, model, n_samples)
     test = get_exp_profiles(p, testset)
 
+
     # evaluate samples
     print(f'train: {train.shape}')
     print(f'test: {test.shape}')
     print(f'Y: {Y.shape}')
     evaluate(train, test, Y)
 
+    if args.o:
+        save_exp_profiles(train, test, args.o)
     # plot UMAP
     if args.umap_path:
         plot_UMAP(train, Y, test, args.umap_path)
