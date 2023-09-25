@@ -12,7 +12,7 @@ N_HVG=$2
 TOKEN_PATH=$3  # json
 
 # create train set
-python preprocessor.py $IN_PATH $N_HVG -save_vocab $TOKEN_PATH
+python preprocessor.py $IN_PATH $N_HVG -path_out $TOKEN_PATH
 
 # create test set
 #python preprocessor.py $IN_PATH $N_HVG -path_out $OUT_PATH -subsample 100000

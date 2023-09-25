@@ -11,6 +11,8 @@ import torch
 from collections import Counter
 import matplotlib.pyplot as plt
 from Sampler import Sampler
+from GeneVocab import GeneVocab
+from typing import Optional
 
 
 class Preprocessor:
@@ -22,6 +24,7 @@ class Preprocessor:
     def __init__(self,
                 anndata: AnnData,
                 n_bins: int,
+                vocab: Optional[GeneVocab],
                 min_counts_genes: int = 10,
                 n_hvg: int = 200
                 ):
@@ -47,8 +50,12 @@ class Preprocessor:
         self.min_counts_genes = min_counts_genes
         self.n_hvg = n_hvg
         self.n_bins = n_bins
+        self.select_hvgs = True
         self.binned_data = None
         self.mean_non_zero_bins = None
+        if vocab:
+            self.vocab = vocab
+            self.select_hvgs = False
 
     def preprocess(self):
         # filter by counts of genes
@@ -69,8 +76,14 @@ class Preprocessor:
         # without log1p row sums are all equal, with log1p they slightly differ
         sc.pp.log1p(self.data)
 
-        # get highly varaible genes (hvg)
-        sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True)
+        if self.select_hvgs:
+            # get highly varaible genes (hvg)
+            sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True)
+        else:
+            # take genes from vocab as features
+            tokens = self.vocab.get_tokens()
+            self.data.var.index = self.data.var.feature_name
+            self.data = self.data[:, tokens]
 
         # value binning
         # get full data matrix (includes zeros)
@@ -181,18 +194,22 @@ class Preprocessor:
         # save array
         np.save(path_out, self.binned_data)
 
-    def save_tokens(self, path_tokens) -> None:
+    def save_tokens(self, path_vocab, extend_vocab=False) -> None:
         '''
-        function generates a dictrionary that maps the gene names to unique ids
+        saves tokens to a GeneVocab
         '''
-        tokens = self.get_gene_tokens()
-        tokens = np.asarray(tokens)
-        vocab = {token : i+1 for i, token in enumerate(tokens)}
-        vocab["PAD"] = 0
-        with open(path_tokens, 'w') as f:
-            # write the dictionary to the file in JSON format
-            json.dump(vocab, f)
-        #np.save(path_tokens, tokens)
+        # load existing vocab
+        if extend_vocab:
+            vocab = GeneVocab()
+            vocab.load_from_file(path_vocab)
+        # create new vocab
+        else:
+            vocab = GeneVocab()
+            vocab.init()
+
+        # extend and save vocab
+        vocab.extend(self.data.var.feature_name.values)
+        vocab.save_to_file(path_vocab)
 
     def subsample(self, n_sample):
         np.random.seed(42)
@@ -223,13 +240,18 @@ if __name__ == '__main__':
     parser.add_argument('-save_vocab',
                         type=str,
                         help='if flack is set, the tokens of the dataset are saved as the vocab in a json file')
+    parser.add_argument('-extend_vocab',
+                        type=bool,
+                        help='if flack is set, a new Gene vocabulary is initialized and saved under path_vocab')
     args = parser.parse_args()
 
     # load dataset
     anndata = scp.read_h5ad(args.path_in)
 
     # preprocess
-    p = Preprocessor(anndata, args.n_hvg, n_hvg=args.n_hvg)
+    vocab = GeneVocab()
+    vocab.load_from_file('/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json')
+    p = Preprocessor(anndata, args.n_hvg, n_hvg=args.n_hvg, vocab=vocab)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
@@ -243,7 +265,7 @@ if __name__ == '__main__':
     if args.path_out:
         p.save_processed_data(args.path_out)
     if args.save_vocab:
-        p.save_tokens(args.save_vocab)
+        p.save_tokens(args.save_vocab, args.extend_vocab)
     # print(p.binned_data)
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')

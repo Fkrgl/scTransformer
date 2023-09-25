@@ -10,6 +10,7 @@ import numpy as np
 from DataSet import scDataSet
 import wandb
 from typing import Tuple
+from GeneVocab import GeneVocab
 import matplotlib.pyplot as plt
 
 
@@ -34,6 +35,7 @@ class Trainer:
                  path_preprocessed: str,
                  path_tokens: str,
                  path_extern_testset: str,
+                 path_vocab: str,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
                  test_mode: Optional[bool] = False,
@@ -82,6 +84,7 @@ class Trainer:
         self.path_preprocessed = path_preprocessed
         self.path_tokens = path_tokens
         self.path_extern_testset = path_extern_testset
+        self.path_vocab = path_vocab
         print(f'cuda available: {torch.cuda.is_available()}')
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
@@ -109,6 +112,8 @@ class Trainer:
             # load and
             config = wandb.config
             cell_type = config.cell_type
+            vocab = GeneVocab()
+            vocab.load_from_file(self.path_vocab)
             ####### preprocess #######
             if config.do_preprocessing:
                 # load_data
@@ -148,11 +153,11 @@ class Trainer:
                     idx_train_cells = idx_not_multiple
 
                 # preprocess
-                p = Preprocessor(data, config.n_bin, self.min_counts_genes, config.n_token)
+                p = Preprocessor(data, config.n_bin, self.min_counts_genes, config.n_token, vocab=vocab)
                 p.permute()
                 p.preprocess()
                 p.get_mean_number_of_nonZero_bins()
-                tokens = p.get_gene_tokens()
+                #tokens = p.get_gene_tokens()
                 data = p.binned_data
                 mean_non_zero_bins = p.mean_non_zero_bins
             # preprocessing already done and saved on disc
@@ -169,7 +174,7 @@ class Trainer:
                 idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
                 idx_rest = list(set(idx_all) - set(idx_test_cells))
                 idx_train_cells = idx_rest
-                tokens = np.load(self.path_tokens, allow_pickle=True)
+                #tokens = np.load(self.path_tokens, allow_pickle=True)
             # split data
             mask_prob = mean_non_zero_bins*2/config.n_token
             print(f'number of tokens: {config.n_token}')
@@ -192,10 +197,8 @@ class Trainer:
                 testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
             print(f'len trainset: {len(trainset)}')
             print(f'len testset: {len(testset)}')
-            # encode gene names
-            n_token = len(tokens)
-            encode, decode = self.get_gene_encode_decode(tokens)
-            x_src = torch.tensor(encode(tokens))
+            # get gene tokens
+            x_src = torch.tensor(vocab.get_tokens())
             # generate data loaders
             train_loader = DataLoader(trainset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             test_loader = DataLoader(testset, batch_size=config.batch_size, shuffle=True, num_workers=4)
@@ -314,6 +317,7 @@ if __name__ == '__main__':
     path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_processed_1500.npy'
     path_tokens = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/token_1500.npy'
     path_extern_testset = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_100K_preprocessed_1500_testset.npy'
+    path_vocab = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
     dataset_path = '/mnt/qb/work/claassen/cxb257/data/heart/heart_100K.h5ad'
     # create model
@@ -339,7 +343,8 @@ if __name__ == '__main__':
         mean_non_zero_bins=mean_non_zero_bins,
         path_preprocessed=path_preprocessed,
         path_tokens=path_tokens,
-        path_extern_testset=path_extern_testset
+        path_extern_testset=path_extern_testset,
+        path_vocab=path_vocab
     )
 
     trainer.train(dataset_path)
