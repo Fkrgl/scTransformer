@@ -7,8 +7,7 @@ from typing import Optional, Dict
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmetrics import Accuracy
 
-
-class TransformerModel(nn.Module):
+class scGenerativeTransformer(nn.Module):
     def __init__(self,
                  d_model: int,
                  n_token: int,
@@ -53,7 +52,7 @@ class TransformerModel(nn.Module):
                                                  )
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         # one decoder for all genes
-        self.decoder = ExprDecoder(self.d_model, self.n_input_bins)
+        self.generator = SampleGenerator(self.d_model, self.n_input_bins)
         self.index = np.arange(self.n_token)
 
         self.loss = nn.CrossEntropyLoss()
@@ -92,77 +91,9 @@ class TransformerModel(nn.Module):
         #     values = self.randomize_maked_position_encodeings(values, key_padding_mask)
         # combined embedding (broadcasting)
         total_embedding = src + values
-        if mask_type == 'src_key_padding_mask':
-            output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)  # , mask=attn_mask
-        elif mask_type == 'attn_mask':
-            # before the attn_mask can be fed into the encoder it has to transformed to shape (N*n_head, L, S):
-            # N = batch size, n_head =n umber of heads, L = length of source sequence, S = length of target sequence
-            attn_mask = torch.vstack([attn_mask] * self.nhead)
-            output = self.transformer_encoder(total_embedding, mask=attn_mask)
-        elif mask_type == 'None':
-            output = self.transformer_encoder(total_embedding)
+        output = self.transformer_encoder(total_embedding)
 
         return output.to(self.device)  # (batch, seq_len, embsize)
-
-    def randomize_maked_position_encodeings(self, output, key_padding_mask):
-        """
-        function takes the output of the transformer and randomizes the encodeings for all masked genes
-        """
-        # print(f'output:\n{output}')
-        rand = torch.FloatTensor(output.shape[0], output.shape[1], output.shape[2]).uniform_(-5, 5).to(self.device)
-        # print(f'rand\n{rand}')
-        output[key_padding_mask] = rand[key_padding_mask]
-        # print(f'mask\n{key_padding_mask}')
-        # print(f'new output\n{output}')
-        return output
-
-
-    def randomize_masked_positions(self, values, key_padding_mask):
-        '''
-        each masked value (TRUE in key_padding_mask) is assigned a random value. Unmasked values stay the same
-        Args:
-            values:
-            key_padding_mask:
-
-        Returns:
-
-        '''
-        values = values.cpu()
-        values = values.detach().numpy()
-        key_padding_mask = key_padding_mask.cpu()
-        key_padding_mask = key_padding_mask.detach().numpy()
-        # i = 5
-        # print(f'original value:\n{values[i]}')
-        random_val = np.random.choice(np.arange(self.n_input_bins), size=values.shape)
-        values[key_padding_mask] = random_val[key_padding_mask]
-        values = torch.tensor(values).to(self.device)
-
-        return values
-
-    def zero_masked_positions(self, values, key_padding_mask):
-        '''
-        each masked value (TRUE in key_padding_mask) is assigned a random value. Unmasked values stay the same
-        Args:
-            values:
-            key_padding_mask:
-
-        Returns:
-
-        '''
-        values = values.cpu()
-        values = values.detach().numpy()
-        key_padding_mask = key_padding_mask.cpu()
-        key_padding_mask = key_padding_mask.detach().numpy()
-        # i = 5
-        # print(f'original value:\n{values[i]}')
-        values[key_padding_mask] = 0
-        # print(f'mask:\n{key_padding_mask[i]}')
-        # print(f'modified value:\n{values[i]}')
-        # print(f'random:\n{random_val[i]}')
-        values = torch.tensor(values).to(self.device)
-
-        return values
-
 
     def forward(self,
                 src: Tensor,
@@ -189,21 +120,12 @@ class TransformerModel(nn.Module):
         # if test samples are processed, randomize masked positions
         # print(f'values: {values[0]}')
         labels = values.clone().to(self.device)
-        if not get_accuracy and randomize_masked_positions:
-            # print('randomize')
-            values = self.randomize_masked_positions(values, key_padding_mask)
-        # print(f'values: {values[0]}')
-        # print(f'labels: {labels[0]}')
-        # masked values are used as input for transformer
-        # print(f'masked_values:\n {masked_values}')
-        # print(f'mask:\n {key_padding_mask}')
         transformer_output = self._encode(src, masked_values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # if get_accuracy:
         #     transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
         # each gene embedding gets its own expression value prediction
-        mlm_output = self.decoder(transformer_output) # (batch, seq_len, n_bin)
-        # get only vectors of masked genes
-        masked_pred_exp, masked_label_exp = self.get_masked_exp(mlm_output, labels, key_padding_mask)
+        mlm_output = self.generator(transformer_output)  # (batch, seq_len, n_bin)
+        # get loss
         loss = self.loss(masked_pred_exp, masked_label_exp)
         output = loss
         # get reconstructed profiles
@@ -221,69 +143,6 @@ class TransformerModel(nn.Module):
             output = (loss, acc_value)
 
         return output
-
-    def get_masked_exp(self, mlm_output, values, key_padding_mask):
-        """
-        calculates the loss per cell using only the masked positions
-        Args:
-            mlm_output: predicted expr (batch, seq_len, n_bin)
-            key_padding_mask: gene expression mask: (batch, seq_len)
-
-        Returns:
-            predicted and ground truth expression of masked genes
-        """
-        masked_pred_exp = torch.Tensor([]).to(self.device)
-        masked_label_exp = torch.Tensor([]).to(self.device)
-        # print('get masked expressions')
-        ###### braucen wir diesen loop ueberhaupt noch?!
-        for i in range(mlm_output.shape[0]):
-            pred = mlm_output[i]
-            value = values[i]
-            mask = key_padding_mask[i]
-            masked_pred = pred[mask]
-            true_bins = value[mask]
-            masked_pred_exp = torch.cat((masked_pred_exp, masked_pred.to(self.device)), dim=0)
-            masked_label_exp = torch.cat((masked_label_exp, true_bins.to(self.device)))
-        # print(f'masked_label_exp[0]:\n{masked_label_exp}')
-        # print(f'masked_pred_exp[0]:\n{masked_pred_exp}')
-        return masked_pred_exp.requires_grad_(True), masked_label_exp.to(dtype=torch.long)
-
-    def generate(self,
-                 src: Tensor,
-                 values: Tensor,
-                 attn_mask: Tensor,
-                 key_padding_mask: Tensor,
-                 mask_type: str,
-                 bins,
-                 get_accuracy: bool
-                 ):
-        n_gen = self.n_token
-        # embedd genes of target cell and feed in transformer encoder
-        encoder_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
-        # decode transformer encoded gene vectors
-        decoder_output = self.decoder(encoder_output)
-        # print(f'decoder_output_shape: {decoder_output.shape}')
-        # get softmax
-        s = nn.Softmax(dim=1)
-        softmax_output = s(decoder_output)
-        # print(softmax_output.sum(dim=0))
-        # print(softmax_output.sum(dim=0).shape)
-        # print(f'softmax:\n{softmax_output}')
-        # print(softmax_output[0].sum())
-        # print(softmax_output[0].shape)
-        # sample from softmax
-        sample_profile = np.zeros(shape=n_gen)
-        # print(softmax_output[0])
-        # print(softmax_output[0].shape)
-        # print(softmax_output[0].sum())
-        for i in range(n_gen):
-            # maybe the softmax is too strict
-            prob = softmax_output[i].detach().numpy()
-            assert len(prob) == len(bins)
-            bin = np.random.choice(bins, size=1, p=prob)
-            sample_profile[i] = bin
-        return sample_profile
-
 
 class GeneEncoder(nn.Module):
     """
@@ -330,22 +189,25 @@ class ValueEncoder(nn.Module):
         x = self.enc_norm(x)
         return x
 
-class ExprDecoder(nn.Module):
+class SampleGenerator(nn.Module):
+    '''
+    task head that functions as a sample generator
+    '''
     def __init__(
-        self,
-        d_model: int,
-        n_bins: int,
-        use_batch_labels: bool = False
+            self,
+            d_model: int,
+            n_bins: int,
+            use_batch_labels: bool = False
     ):
         super().__init__()
         # how big should be the hidden layer?
         d_in = d_model
         self.fc = nn.Sequential(
-            nn.Linear(d_in, d_model),
+            nn.Linear(d_in, 2*d_model),
             nn.LeakyReLU(),
-            nn.Linear(d_model, d_model),
+            nn.Linear(2*d_model, 2*d_model),
             nn.LeakyReLU(),
-            nn.Linear(d_model, n_bins)
+            nn.Linear(2*d_model, n_bins)
         )
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:
@@ -360,5 +222,3 @@ class ExprDecoder(nn.Module):
         pred_value = self.fc(x)  # (batch, seq_len, 1)
         # pred_value = pred_value.squeeze(-1)  # (batch, seq_len)
         return pred_value
-
-

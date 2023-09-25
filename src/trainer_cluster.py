@@ -114,6 +114,7 @@ class Trainer:
             cell_type = config.cell_type
             vocab = GeneVocab()
             vocab.load_from_file(self.path_vocab)
+            n_token = len(vocab.vocab) - 1 # exclude the pad token
             ####### preprocess #######
             if config.do_preprocessing:
                 # load_data
@@ -153,7 +154,7 @@ class Trainer:
                     idx_train_cells = idx_not_multiple
 
                 # preprocess
-                p = Preprocessor(data, config.n_bin, self.min_counts_genes, config.n_token, vocab=vocab)
+                p = Preprocessor(data, config.n_bin, self.min_counts_genes, n_token, vocab=vocab)
                 p.permute()
                 p.preprocess()
                 p.get_mean_number_of_nonZero_bins()
@@ -174,10 +175,9 @@ class Trainer:
                 idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
                 idx_rest = list(set(idx_all) - set(idx_test_cells))
                 idx_train_cells = idx_rest
-                #tokens = np.load(self.path_tokens, allow_pickle=True)
             # split data
-            mask_prob = mean_non_zero_bins*2/config.n_token
-            print(f'number of tokens: {config.n_token}')
+            mask_prob = mean_non_zero_bins*2/n_token
+            print(f'number of tokens: {n_token}')
             print(f'number of non zero bins: {mean_non_zero_bins}')
             print(f'masked_genes/all_genes={mask_prob}')
             print(f'randomization: {config.randomization}')
@@ -185,20 +185,22 @@ class Trainer:
             n_mask = mean_non_zero_bins*2
             # keep masking prob below given masking prob
             if mask_prob > config.mlm_probability:
-                n_mask = int((config.n_token * config.mlm_probability) // 2)
-            print(f'adapted masking={n_mask * 2 / config.n_token}')
+                n_mask = int((n_token * config.mlm_probability) // 2)
+            print(f'adapted masking={n_mask * 2 / n_token}')
             # use random split for test/train or all of the data as train and a extern set as test
             if config.extern_testset:
                 test_data = np.load(self.path_extern_testset)
-                trainset = scDataSet(data, config.n_bin, n_mask, config.n_token)
-                testset = scDataSet(test_data, config.n_bin, n_mask, config.n_token)
+                trainset = scDataSet(data, config.n_bin, n_mask, n_token)
+                testset = scDataSet(test_data, config.n_bin, n_mask, n_token)
             else:
-                trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, config.n_token)
-                testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, config.n_token)
+                trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, n_token)
+                testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, n_token)
             print(f'len trainset: {len(trainset)}')
             print(f'len testset: {len(testset)}')
             # get gene tokens
-            x_src = torch.tensor(vocab.get_tokens())
+            x_src = torch.tensor(vocab.get_token_ids()[1:])  # exclude padding token
+            print(f'x_src: {x_src}')
+            print(f'x_src type: {type(x_src)}')
             # generate data loaders
             train_loader = DataLoader(trainset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             test_loader = DataLoader(testset, batch_size=config.batch_size, shuffle=True, num_workers=4)
@@ -208,7 +210,7 @@ class Trainer:
                                      dim_feedforward=config.dim_feedforward,
                                      nlayers=config.n_layer,
                                      n_input_bins=config.n_bin,
-                                     n_token=config.n_token,
+                                     n_token=n_token,
                                      nhead=config.n_head)
             wandb.watch(model, log='all', log_freq=np.ceil(n_train / self.batch_size))
             m = model.to(self.device)
@@ -249,7 +251,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            #torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_1Mio_ep2.pth')
+            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_1Mio_pretrain_finetune_ep2.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -314,7 +316,7 @@ if __name__ == '__main__':
     mlm_probability = None
     seed = 1234
     mean_non_zero_bins = 24
-    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_processed_1500.npy'
+    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_pretrain_finetune_1500_200.npy'
     path_tokens = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/token_1500.npy'
     path_extern_testset = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_100K_preprocessed_1500_testset.npy'
     path_vocab = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json'

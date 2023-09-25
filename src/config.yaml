@@ -21,7 +21,7 @@ parameters:
     n_layer:
         value: 4
     batch_size:
-        value: 11
+        value: 9
     cell_type:
         value: 'None'
     mask_type:
@@ -29,8 +29,8 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'heart1Mio / large model / 1500 token'
+        value: 'heart1Mio / large model / 1629 token'
     do_preprocessing:
         value: False
     extern_testset:
-        value: True
+        value: False

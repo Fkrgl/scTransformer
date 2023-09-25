@@ -83,7 +83,8 @@ class Preprocessor:
             # take genes from vocab as features
             tokens = self.vocab.get_tokens()
             self.data.var.index = self.data.var.feature_name
-            self.data = self.data[:, tokens]
+            # exclude pad token from subset
+            self.data = self.data[:, tokens[1:]]
 
         # value binning
         # get full data matrix (includes zeros)

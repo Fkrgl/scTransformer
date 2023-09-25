@@ -33,6 +33,9 @@ class GeneVocab:
     def get_tokens(self):
         return list(self.vocab.keys())
 
+    def get_token_ids(self):
+        return list(self.vocab.values())
+
     def save_to_file(self, path_vocab) -> None:
         with open(path_vocab, 'w') as f:
             # write the dictionary to the file in JSON format
