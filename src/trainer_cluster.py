@@ -206,6 +206,7 @@ class Trainer:
             test_loader = DataLoader(testset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             n_train = len(trainset)
             # set up model
+            # include the pad token again !
             model = TransformerModel(d_model=config.n_emb,
                                      dim_feedforward=config.dim_feedforward,
                                      nlayers=config.n_layer,

@@ -62,7 +62,6 @@ class scGenerativeTransformer(nn.Module):
 
     def init_weights(self) -> None:
         initrange = 0.1
-        # TODO: check if this initialization is helpful and shall we apply to all?
         self.encoder.embedding.weight.data.uniform_(-initrange, initrange)
 
     def _encode(self,

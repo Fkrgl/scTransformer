@@ -86,6 +86,8 @@ class TransformerModel(nn.Module):
         """
         # gene embedding
         src = self.encoder(src)
+        print(values)
+        print(torch.unique(values))
         values = self.value_encoder(values)
         # for test runs, randomize all value embeddings of masked genes
         # if get_accuracy:
@@ -316,7 +318,7 @@ class ValueEncoder(nn.Module):
         self,
         num_embeddings: int,
         embedding_dim: int,
-        padding_idx: Optional[int] = None,
+        padding_idx: Optional[int] = 0,
     ):
         super().__init__()
         self.embedding = nn.Embedding(
