@@ -85,6 +85,12 @@ class TransformerModel(nn.Module):
             embedding tensor: (batch, seq_len, embsize)
         """
         # gene embedding
+        print(f'n_token: {self.n_token}')
+        print(f'src: {src}')
+        print(f'len src: {len(src)}')
+        print(f'type first element: {type(src[0])}')
+        print(f'unique src: {torch.unique(src)}')
+        print(f'len unique src: {len(torch.unique(src))}')
         src = self.encoder(src)
         print(values)
         print(torch.unique(values))
@@ -318,7 +324,7 @@ class ValueEncoder(nn.Module):
         self,
         num_embeddings: int,
         embedding_dim: int,
-        padding_idx: Optional[int] = 0,
+        padding_idx: Optional[int] = None,
     ):
         super().__init__()
         self.embedding = nn.Embedding(
