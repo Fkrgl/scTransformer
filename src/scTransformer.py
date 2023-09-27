@@ -87,13 +87,12 @@ class TransformerModel(nn.Module):
             embedding tensor: (batch, seq_len, embsize)
         """
         # gene embedding
-        print(f'n_token: {self.n_token}')
-        print(f'src: {src}')
-        print(f'len src: {len(src)}')
-        print(f'type first element: {type(src[0])}')
-        print(f'unique src: {torch.unique(src)}')
-        print(f'len unique src: {len(torch.unique(src))}')
-        sys.exit()
+        # print(f'n_token: {self.n_token}')
+        # print(f'src: {src}')
+        # print(f'len src: {len(src)}')
+        # print(f'type first element: {src.dtype}')
+        # print(f'unique src: {torch.unique(src)}')
+        # print(f'len unique src: {len(torch.unique(src))}')
         src = self.encoder(src)
         values = self.value_encoder(values)
         # for test runs, randomize all value embeddings of masked genes
