@@ -64,3 +64,6 @@ print(random_ints)
 # exp_data = torch.tensor(size=(10,10))
 # exp_data[mask] = random_ints
 # print(exp_data)
+mask = np.zeros(10, dtype=bool)
+mask[5:] = True
+print(mask)

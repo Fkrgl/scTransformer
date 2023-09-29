@@ -50,7 +50,11 @@ def load_data(path: str):
     return data
 
 def process_data(data, n_input_bins, min_counts_genes, n_token):
-    p = Preprocessor(data, n_input_bins, min_counts_genes, n_token)
+    p = Preprocessor(anndata=data,
+                     n_bins=n_input_bins,
+                     min_counts_genes=min_counts_genes,
+                     n_hvg=n_token,
+                     vocab=None)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     return p
@@ -193,8 +197,8 @@ def plot_dataset(p, dataset, n_components=50):
 def save_exp_profiles(original, generated, path: str):
     if not path.endswith('/'):
         path += '/'
-    np.save(path + 'original.npy', original)
-    np.save(path + 'generated.npy', generated)
+    np.save(path + 'original_unmasked.npy', original)
+    np.save(path + 'generated_unmasked.npy', generated)
 
 
 if __name__ == '__main__':
@@ -223,7 +227,9 @@ if __name__ == '__main__':
     anndata = load_data(args.data_path)
     p = process_data(anndata, n_input_bins, min_counts_genes, n_token)
     data = p.binned_data
-    trainset, testset = get_train_test_set(data, n_input_bins, p.mean_non_zero_bins//2, n_token, n_samples, split=0.5)
+    # trainset = scDataSet(data, n_input_bins, 0, n_token)
+
+    trainset, testset = get_train_test_set(data, n_input_bins, 0, n_token, n_samples, split=0.5)
     tokens = p.get_gene_tokens()
     encode, decode = get_gene_encode_decode(tokens)
     x_src = torch.tensor(encode(tokens))

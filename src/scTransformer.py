@@ -41,8 +41,8 @@ class TransformerModel(nn.Module):
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
         # define the gene encoder
-        self.encoder = GeneEncoder(self.n_token, self.d_model)
-        self.value_encoder = ValueEncoder(self.n_input_bins+1, self.d_model) # , padding_idx=self.n_input_bins, +1 beacuse we added bin -1 as mask_value
+        self.encoder = GeneEncoder(self.n_token, self.d_model, padding_idx=0)
+        self.value_encoder = ValueEncoder(self.n_input_bins+1, self.d_model, padding_idx=0) # , padding_idx=self.n_input_bins, +1 beacuse we added bin -1 as mask_value
         # define the transformer encoder
         encoder_layers = TransformerEncoderLayer(d_model=d_model,
                                                  nhead=self.nhead,
@@ -85,21 +85,24 @@ class TransformerModel(nn.Module):
             embedding tensor: (batch, seq_len, embsize)
         """
         # gene embedding
-        print(f'n_token: {self.n_token}')
-        print(f'src: {src}')
-        print(f'len src: {len(src)}')
-        print(f'type first element: {type(src[0])}')
-        print(f'unique src: {torch.unique(src)}')
-        print(f'len unique src: {len(torch.unique(src))}')
+        # print(f'n_token: {self.n_token}')
+        # print(f'src: {src}')
+        # print(f'len src: {len(src)}')
+        # print(f'type first element: {type(src[0])}')
+        # print(f'unique src: {torch.unique(src)}')
+        # print(f'len unique src: {len(torch.unique(src))}')
+        # print(f'values: {values}')
+        # print(f'src: {src}')
         src = self.encoder(src)
-        print(values)
-        print(torch.unique(values))
+        # print(torch.unique(values))
         values = self.value_encoder(values)
+        # print(f'value embedding : {values}')
+        # print(f'src embedding: {src}')
         # for test runs, randomize all value embeddings of masked genes
         # if get_accuracy:
         #     values = self.randomize_maked_position_encodeings(values, key_padding_mask)
         # combined embedding (broadcasting)
-        total_embedding = src + values
+        total_embedding = src + values   # exclude th padding token from src
         if mask_type == 'src_key_padding_mask':
             output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)  # , mask=attn_mask
         elif mask_type == 'attn_mask':

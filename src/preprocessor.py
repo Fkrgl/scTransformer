@@ -53,6 +53,7 @@ class Preprocessor:
         self.select_hvgs = True
         self.binned_data = None
         self.mean_non_zero_bins = None
+        self.padding_idx = 0
         if vocab:
             self.vocab = vocab
             self.select_hvgs = False
@@ -159,6 +160,22 @@ class Preprocessor:
         digits = np.ceil(digits).astype(np.int64)
         return digits
 
+    def _pad(self, vocab_size: int):
+        """
+        pad the expression of non-existing genes with 0
+        """
+        self.binned_data = torch.cat(
+            [
+                torch.tensor(self.binned_data),
+                torch.full(
+                    (self.binned_data.shape[0], vocab_size-self.binned_data.shape[1]),
+                    self.padding_idx,
+                ),
+            ], dim=1
+        )
+        # convert tensor back to numpy array
+        self.binned_data = self.binned_data.detach().numpy()
+
     def create_bin_mapping(self, bins):
         bins = np.hstack((np.array([0]), bins))
         bins_to_value = {}
@@ -176,7 +193,7 @@ class Preprocessor:
         self.data = self.data[permute]
 
     def get_gene_tokens(self):
-        return self.data.var.index.values
+        return self.data.var.feature_name.values
 
     def get_mean_number_of_nonZero_bins(self):
         non_zeros = np.count_nonzero(self.binned_data, axis=1)
@@ -210,6 +227,7 @@ class Preprocessor:
 
         # extend and save vocab
         vocab.extend(self.data.var.feature_name.values)
+        print(len(vocab.vocab))
         vocab.save_to_file(path_vocab)
 
     def subsample(self, n_sample):
@@ -252,11 +270,13 @@ if __name__ == '__main__':
     # preprocess
     vocab = GeneVocab()
     vocab.load_from_file('/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json')
-    p = Preprocessor(anndata, args.n_hvg, n_hvg=args.n_hvg, vocab=vocab)
+    p = Preprocessor(anndata, 100, n_hvg=args.n_hvg, vocab=None)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
-    print(f'sahpe: {p.binned_data.shape}')
+    print(f'shape: {p.binned_data.shape}')
+    print(f'p.bineed_data: {p.binned_data}')
+    print(f'p.bineed_data unique: {np.unique(p.binned_data)}')
 
     # subsample
     if args.subsample:
