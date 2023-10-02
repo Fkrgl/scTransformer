@@ -99,6 +99,7 @@ def get_subsample(data, n_sample):
     np.random.seed(42)
     random_indices = np.random.choice(data.shape[0], n_sample, replace=False)
     data = data[random_indices, :]
+    return data
 
 def get_mean_profile(data):
     return torch.tensor(np.round(np.mean(data, axis=0)))
@@ -106,7 +107,7 @@ def get_mean_profile(data):
 def save_exp_profiles(profiles, path: str):
     if not path.endswith('/'):
         path += '/'
-    np.save(path + 'spleen_generated_samples_profile.npy', profiles)
+    np.save(path + 'heart_endothelial_200_10000.npy', profiles)
 
 
 if __name__ == '__main__':
@@ -121,7 +122,8 @@ if __name__ == '__main__':
     print(args.model_path)
 
     data = np.load(args.data_path)
-    gene_names = np.load(args.token_path)
+    gene_names = np.load(args.token_path, allow_pickle=True)
+    print(gene_names)
     vocab = GeneVocab()
     vocab.load_from_file(args.vocab_path)
 
@@ -137,11 +139,16 @@ if __name__ == '__main__':
     model = load_model(args.model_path, d_model, dim_feedforward, nlayers, n_input_bins, n_token, nhead)
     # create src
     vocab_size = len(vocab.vocab) - 1
+    token_hvg = data.shape[1]
     x_src = [vocab.vocab[gene] for gene in gene_names]
     x_src = torch.tensor(x_src)
-    x_src = torch.cat([x_src, torch.full(size=(vocab_size - n_token,), fill_value=0)])
+    x_src = torch.cat([x_src, torch.full(size=(vocab_size - token_hvg,), fill_value=0)])
     #profile = torch.zeros_like(x_src)
-    profiles = generate_samples(data, args.n)
+    profiles = get_subsample(data, args.n)
+    # correct to right size of the model: 200 -> 1628
+    profiles = np.hstack([profiles, np.zeros(shape=(profiles.shape[0], vocab_size-token_hvg))])
+    print(profiles.shape)
     generated_profiles = generate_samples(profiles, x_src, model)
+    print(generated_profiles.shape)
     #generated_profiles = generate_samples_one_sample(profile, x_src, model, args.n)
     save_exp_profiles(np.vstack([profiles ,generated_profiles]), args.o)

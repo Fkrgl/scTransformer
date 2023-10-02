@@ -285,7 +285,7 @@ class TransformerModel(nn.Module):
                  bins,
                  get_accuracy: bool
                  ):
-        n_gen = self.n_token
+        n_gen = self.n_token-1
         # embedd genes of target cell and feed in transformer encoder
         encoder_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # decode transformer encoded gene vectors
@@ -300,13 +300,15 @@ class TransformerModel(nn.Module):
         # print(softmax_output[0].sum())
         # print(softmax_output[0].shape)
         # sample from softmax
+        np.save('/home/claassen/cxb257/scTransformer/data/heart_endothelial_decoderOutput.npy', decoder_output.detach().numpy())
         sample_profile = np.zeros(shape=n_gen)
         # print(softmax_output[0])
         # print(softmax_output[0].shape)
         # print(softmax_output[0].sum())
-        for i in range(n_gen):
+        for i in range(n_gen-1):
             # maybe the softmax is too strict
             prob = softmax_output[i].detach().numpy()
+            #print(f'prob: {prob}')
             assert len(prob) == len(bins)
             bin = np.random.choice(bins, size=1, p=prob)
             sample_profile[i] = bin
