@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -8,6 +6,7 @@ from typing import Optional, Dict
 # encoder layers are based on paper "Attention is all you need"
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmetrics import Accuracy
+import sys
 
 
 class TransformerModel(nn.Module):
@@ -18,9 +17,11 @@ class TransformerModel(nn.Module):
                  dim_feedforward: int,
                  nlayers: int,
                  n_input_bins: int,
+                 hvg_finetune: Optional[int] = None,
                  dropout: Optional[float] = None,
                  pad_token: str = "<pad>",
                  pad_value: int = 0,
+                 finetune: bool = False,
                  ):
         """
 
@@ -41,10 +42,13 @@ class TransformerModel(nn.Module):
         self.n_input_bins = n_input_bins
         self.n_token = n_token
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.finetune = finetune
+        if hvg_finetune:
+            self.hvg_finetune = hvg_finetune
 
         # define the gene encoder
-        self.encoder = GeneEncoder(self.n_token, self.d_model)
-        self.value_encoder = ValueEncoder(self.n_input_bins+1, self.d_model) # , padding_idx=self.n_input_bins, +1 beacuse we added bin -1 as mask_value
+        self.encoder = GeneEncoder(self.n_token, self.d_model, padding_idx=0)
+        self.value_encoder = ValueEncoder(self.n_input_bins+1, self.d_model, padding_idx=0) # , padding_idx=self.n_input_bins, +1 beacuse we added bin -1 as mask_value
         # define the transformer encoder
         encoder_layers = TransformerEncoderLayer(d_model=d_model,
                                                  nhead=self.nhead,
@@ -87,19 +91,16 @@ class TransformerModel(nn.Module):
             embedding tensor: (batch, seq_len, embsize)
         """
         # gene embedding
-        # print(f'n_token: {self.n_token}')
-        # print(f'src: {src}')
-        # print(f'len src: {len(src)}')
-        # print(f'type first element: {src.dtype}')
-        # print(f'unique src: {torch.unique(src)}')
-        # print(f'len unique src: {len(torch.unique(src))}')
         src = self.encoder(src)
+        # print(torch.unique(values))
         values = self.value_encoder(values)
+        # print(f'value embedding : {values}')
+        # print(f'src embedding: {src}')
         # for test runs, randomize all value embeddings of masked genes
         # if get_accuracy:
         #     values = self.randomize_maked_position_encodeings(values, key_padding_mask)
         # combined embedding (broadcasting)
-        total_embedding = src + values
+        total_embedding = src + values   # exclude th padding token from src
         if mask_type == 'src_key_padding_mask':
             output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)  # , mask=attn_mask
         elif mask_type == 'attn_mask':
@@ -240,6 +241,17 @@ class TransformerModel(nn.Module):
         Returns:
             predicted and ground truth expression of masked genes
         """
+        # for the finetune objective, all padding token need to be excluded from the computation
+        # print(f'mlm_output: {mlm_output.shape}')
+        # print(f'values: {values.shape}')
+        # print(f'key_padding_mask: {key_padding_mask.shape}')
+        if self.finetune:
+            mlm_output = mlm_output[:, :self.hvg_finetune, :]
+            values = values[:, :self.hvg_finetune]
+            key_padding_mask = key_padding_mask[:, :self.hvg_finetune]
+        # print(f'mlm_output: {mlm_output.shape}')
+        # print(f'values: {values.shape}')
+        # print(f'key_padding_mask: {key_padding_mask.shape}')
         masked_pred_exp = torch.Tensor([]).to(self.device)
         masked_label_exp = torch.Tensor([]).to(self.device)
         # print('get masked expressions')
@@ -265,7 +277,7 @@ class TransformerModel(nn.Module):
                  bins,
                  get_accuracy: bool
                  ):
-        n_gen = self.n_token
+        n_gen = self.n_token-1
         # embedd genes of target cell and feed in transformer encoder
         encoder_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # decode transformer encoded gene vectors
@@ -280,13 +292,15 @@ class TransformerModel(nn.Module):
         # print(softmax_output[0].sum())
         # print(softmax_output[0].shape)
         # sample from softmax
+        np.save('/home/claassen/cxb257/scTransformer/data/heart_endothelial_decoderOutput.npy', decoder_output.detach().numpy())
         sample_profile = np.zeros(shape=n_gen)
         # print(softmax_output[0])
         # print(softmax_output[0].shape)
         # print(softmax_output[0].sum())
-        for i in range(n_gen):
+        for i in range(n_gen-1):
             # maybe the softmax is too strict
             prob = softmax_output[i].detach().numpy()
+            #print(f'prob: {prob}')
             assert len(prob) == len(bins)
             bin = np.random.choice(bins, size=1, p=prob)
             sample_profile[i] = bin
@@ -368,7 +382,5 @@ class ExprDecoder(nn.Module):
         pred_value = self.fc(x)  # (batch, seq_len, 1)
         # pred_value = pred_value.squeeze(-1)  # (batch, seq_len)
         return pred_value
-
-
 
 

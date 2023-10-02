@@ -1,17 +1,17 @@
-program: /home/claassen/cxb257/scTransformer/src/trainer_cluster.py
+program: /home/claassen/cxb257/scTransformer/src/trainer_finetune.py
 method: grid
 metric:
   name: test_loss
   goal: minimize
 parameters:
     n_epoch:
-        value: 2
+        value: 30
     mlm_probability:
-        value: 0.03
+        value: 0.15
     n_bin:
         value: 100
     n_token:
-        value: 1500
+        value: 200
     n_emb:
         value: 256
     n_head:
@@ -21,7 +21,7 @@ parameters:
     n_layer:
         value: 4
     batch_size:
-        value: 11
+        value: 9
     cell_type:
         value: 'None'
     mask_type:
@@ -29,8 +29,8 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'heart1Mio / large model / 1500 token'
+        value: 'heart 1,8 Mio / large model / 1629 token / pretrained / finetune'
     do_preprocessing:
-        value: False
-    extern_testset:
         value: True
+    extern_testset:
+        value: False

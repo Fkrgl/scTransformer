@@ -6,10 +6,13 @@ import scanpy as scp
 import sys
 import argparse
 import math
+import json
 import torch
 from collections import Counter
 import matplotlib.pyplot as plt
 from Sampler import Sampler
+from GeneVocab import GeneVocab
+from typing import Optional
 
 
 class Preprocessor:
@@ -21,8 +24,9 @@ class Preprocessor:
     def __init__(self,
                 anndata: AnnData,
                 n_bins: int,
+                vocab: Optional[GeneVocab],
                 min_counts_genes: int = 10,
-                n_hvg: int = 200,
+                n_hvg: int = 200
                 ):
         """
 
@@ -46,8 +50,13 @@ class Preprocessor:
         self.min_counts_genes = min_counts_genes
         self.n_hvg = n_hvg
         self.n_bins = n_bins
+        self.select_hvgs = True
         self.binned_data = None
         self.mean_non_zero_bins = None
+        self.padding_idx = 0
+        if vocab:
+            self.vocab = vocab
+            self.select_hvgs = False
 
     def preprocess(self):
         # filter by counts of genes
@@ -68,8 +77,15 @@ class Preprocessor:
         # without log1p row sums are all equal, with log1p they slightly differ
         sc.pp.log1p(self.data)
 
-        # get highly varaible genes (hvg)
-        sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True)
+        if self.select_hvgs:
+            # get highly varaible genes (hvg)
+            sc.pp.highly_variable_genes(self.data, n_top_genes=self.n_hvg, subset=True)
+        else:
+            # take genes from vocab as features
+            tokens = self.vocab.get_tokens()
+            self.data.var.index = self.data.var.feature_name
+            # exclude pad token from subset
+            self.data = self.data[:, tokens[1:]]
 
         # value binning
         # get full data matrix (includes zeros)
@@ -144,6 +160,22 @@ class Preprocessor:
         digits = np.ceil(digits).astype(np.int64)
         return digits
 
+    def _pad(self, vocab_size: int):
+        """
+        pad the expression of non-existing genes with 0
+        """
+        self.binned_data = torch.cat(
+            [
+                torch.tensor(self.binned_data),
+                torch.full(
+                    (self.binned_data.shape[0], vocab_size-self.binned_data.shape[1]),
+                    self.padding_idx,
+                ),
+            ], dim=1
+        )
+        # convert tensor back to numpy array
+        self.binned_data = self.binned_data.detach().numpy()
+
     def create_bin_mapping(self, bins):
         bins = np.hstack((np.array([0]), bins))
         bins_to_value = {}
@@ -161,7 +193,7 @@ class Preprocessor:
         self.data = self.data[permute]
 
     def get_gene_tokens(self):
-        return self.data.var.index.values
+        return self.data.var.feature_name.values
 
     def get_mean_number_of_nonZero_bins(self):
         non_zeros = np.count_nonzero(self.binned_data, axis=1)
@@ -180,15 +212,30 @@ class Preprocessor:
         # save array
         np.save(path_out, self.binned_data)
 
-    def save_tokens(self, path_tokens) -> None:
-        tokens = self.get_gene_tokens()
-        tokens = np.asarray(tokens)
-        np.save(path_tokens, tokens)
+    def save_tokens(self, path_vocab, extend_vocab=False) -> None:
+        '''
+        saves tokens to a GeneVocab
+        '''
+        # load existing vocab
+        if extend_vocab:
+            vocab = GeneVocab()
+            vocab.load_from_file(path_vocab)
+        # create new vocab
+        else:
+            vocab = GeneVocab()
+            vocab.init()
+
+        # extend and save vocab
+        vocab.extend(self.data.var.feature_name.values)
+        print(len(vocab.vocab))
+        vocab.save_to_file(path_vocab)
 
     def subsample(self, n_sample):
         np.random.seed(42)
         random_indices = np.random.choice(self.binned_data.shape[0], n_sample, replace=False)
         self.binned_data = self.binned_data[random_indices, :]
+
+
 
 
 if __name__ == '__main__':
@@ -209,17 +256,27 @@ if __name__ == '__main__':
                         metavar='N',
                         type=int,
                         help='if flack is set, the dataset is subsampled with the specified number of samples')
+    parser.add_argument('-save_vocab',
+                        type=str,
+                        help='if flack is set, the tokens of the dataset are saved as the vocab in a json file')
+    parser.add_argument('-extend_vocab',
+                        type=bool,
+                        help='if flack is set, a new Gene vocabulary is initialized and saved under path_vocab')
     args = parser.parse_args()
 
     # load dataset
     anndata = scp.read_h5ad(args.path_in)
 
     # preprocess
-    p = Preprocessor(anndata, 100, n_hvg=args.n_hvg)
+    vocab = GeneVocab()
+    vocab.load_from_file('/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json')
+    p = Preprocessor(anndata, 100, n_hvg=args.n_hvg, vocab=None)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')
-    print(f'sahpe: {p.binned_data.shape}')
+    print(f'shape: {p.binned_data.shape}')
+    print(f'p.bineed_data: {p.binned_data}')
+    print(f'p.bineed_data unique: {np.unique(p.binned_data)}')
 
     # subsample
     if args.subsample:
@@ -228,8 +285,9 @@ if __name__ == '__main__':
     # save to file
     if args.path_out:
         p.save_processed_data(args.path_out)
-        if args.path_token:
-            p.save_tokens(args.path_token)
+        np.save(args.path_token, p.data.var.feature_name.values)
+    if args.save_vocab:
+        p.save_tokens(args.save_vocab, args.extend_vocab)
     # print(p.binned_data)
     # print(f'output shape: {p.binned_data.shape}')
     # print(f' one single example has size {p.binned_data[0].shape}: \n{p.binned_data[0]}')

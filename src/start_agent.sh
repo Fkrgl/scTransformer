@@ -4,7 +4,7 @@
 #SBATCH --mem=60G
 #SBATCH --ntasks-per-node=1
 #SBATCH --nodes=1                 # Ensure that all cores are on one machine
-#SBATCH --time=15  # Runtime in D-HH:MM
+#SBATCH --time=2-00:00  # Runtime in D-HH:MM
 #SBATCH --gres=gpu:1    # optionally type and number of gpus
 #SBATCH --partition=gpu-2080ti
 #SBATCH -o /mnt/qb/work/claassen/cxb257/out/%j.out # Standard output - make sure this is not on $HOME

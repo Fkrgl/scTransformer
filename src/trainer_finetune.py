@@ -1,4 +1,8 @@
-import sys
+"""
+this is a training code for finetuning a pre-trained model. Finetuning includes padding of the new data points, loading
+of the pre-trained model
+"""
+
 
 from scTransformer import *
 from preprocessor import Preprocessor
@@ -11,8 +15,6 @@ from DataSet import scDataSet
 import wandb
 from typing import Tuple
 from GeneVocab import GeneVocab
-import matplotlib.pyplot as plt
-
 
 class Trainer:
     def __init__(self,
@@ -36,6 +38,7 @@ class Trainer:
                  path_tokens: str,
                  path_extern_testset: str,
                  path_vocab: str,
+                 model_path: str,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
                  test_mode: Optional[bool] = False,
@@ -85,23 +88,10 @@ class Trainer:
         self.path_tokens = path_tokens
         self.path_extern_testset = path_extern_testset
         self.path_vocab = path_vocab
+        self.model_path = model_path
         print(f'cuda available: {torch.cuda.is_available()}')
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
-
-    def get_gene_encode_decode(self, token_names: list):
-        """
-        Returns: encoder and decoder functions that map gene names to integer and vise versa
-        """
-        vocab_size = len(token_names)
-        # map each gene to a unique id
-        token_to_id = {token: i for i, token in enumerate(token_names)}
-        id_to_token = {i: token for i, token in enumerate(token_names)}
-        encode = lambda token_list: [token_to_id[t] for t in
-                                     token_list]  # encoder: take a list of gene names, output list of integers
-        decode = lambda index_list: [id_to_token[idx] for idx in
-                                     index_list]  # decoder: take a list of integers, output a string
-        return encode, decode
 
     def train(self, path: str, config=None) -> None:
         """
@@ -116,67 +106,26 @@ class Trainer:
             vocab.load_from_file(self.path_vocab)
             n_token = len(vocab.vocab)
             ####### preprocess #######
-            if config.do_preprocessing:
-                # load_data
-                data = scp.read_h5ad(path)
-                print(f'data set has shape {data.shape}')
-                # data = scv.datasets.bonemarrow(path)
-                # data = scv.datasets.pbmc68k()
-                min_test_set = 481
-                max_test_set = 642
-                n_train_set = len(data) - max_test_set
-                data.obs.reset_index(inplace=True)
-                # split for not omit any cell type
-                if cell_type == 'None':
-                    n_train = int(0.9 * len(data))
-                    n_test = int(len(data) - n_train)
-                    idx_all = np.arange(len(data))
-                    idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
-                    idx_rest = list(set(idx_all) - set(idx_test_cells))
-                    idx_train_cells = idx_rest
-                elif cell_type == 'endstates':
-                    endstates = ['Alpha', 'Beta', 'Delta', 'Epsilon']
-                    idx_enstates = data.obs[data.obs.clusters.isin(endstates)].index.values
-                    idx_not_endstates = data.obs[~data.obs.clusters.isin(endstates)].index.values
-                    idx_test_cells = idx_enstates
-                    idx_train_cells = idx_not_endstates
-                elif cell_type == 'earlystates':
-                    earlystates = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP']
-                    idx_earlystates = data.obs[data.obs.clusters.isin(earlystates)].index.values
-                    idx_not_earlystates = data.obs[~data.obs.clusters.isin(earlystates)].index.values
-                    idx_test_cells = idx_earlystates
-                    idx_train_cells = idx_not_earlystates
-                elif cell_type == 'multiple':
-                    multiple = ['Ductal', 'Ngn3 low EP', 'Ngn3 high EP', 'Alpha', 'Beta', 'Delta']
-                    idx_multiple = data.obs[data.obs.clusters.isin(multiple)].index.values
-                    idx_not_multiple = data.obs[~data.obs.clusters.isin(multiple)].index.values
-                    idx_test_cells = idx_multiple
-                    idx_train_cells = idx_not_multiple
-
-                # preprocess
-                p = Preprocessor(data, config.n_bin, self.min_counts_genes, n_token, vocab=vocab)
-                p.permute()
-                p.preprocess()
-                p.get_mean_number_of_nonZero_bins()
-                #tokens = p.get_gene_tokens()
-                data = p.binned_data
-                mean_non_zero_bins = p.mean_non_zero_bins
-            # preprocessing already done and saved on disc
-            else:
-                # load preprocessed
-                print(f'path to preprocessed data:\n {self.path_preprocessed}')
-                data = np.load(self.path_preprocessed)
-                print(data)
-                print(np.unique(data))
-                print(f'loaded processed data shape: {data.shape}')
-                mean_non_zero_bins = self.mean_non_zero_bins
-                # split
-                n_train = int(0.9 * len(data))
-                n_test = int(len(data) - n_train)
-                idx_all = np.arange(len(data))
-                idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
-                idx_rest = list(set(idx_all) - set(idx_test_cells))
-                idx_train_cells = idx_rest
+            # load_data
+            data = scp.read_h5ad(path)
+            print(f'data set has shape {data.shape}')
+            data.obs.reset_index(inplace=True)
+            # split for not omit any cell type
+            n_train = int(0.9 * len(data))
+            n_test = int(len(data) - n_train)
+            idx_all = np.arange(len(data))
+            idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
+            idx_rest = list(set(idx_all) - set(idx_test_cells))
+            idx_train_cells = idx_rest
+            # preprocess
+            p = Preprocessor(data, config.n_bin, vocab=None, min_counts_genes=self.min_counts_genes, n_hvg=config.n_token) # config.n_token is the number of hvgs for finetune dataset
+            p.preprocess()
+            # pad all genes that are not present in fintune dataset
+            p._pad(len(vocab.vocab)-1)
+            p.get_mean_number_of_nonZero_bins()
+            #tokens = p.get_gene_tokens()
+            data = p.binned_data
+            mean_non_zero_bins = p.mean_non_zero_bins
             # split data
             mask_prob = mean_non_zero_bins*2/n_token
             print(f'number of tokens: {n_token}')
@@ -192,29 +141,44 @@ class Trainer:
             # use random split for test/train or all of the data as train and a extern set as test
             if config.extern_testset:
                 test_data = np.load(self.path_extern_testset)
-                trainset = scDataSet(data, config.n_bin, n_mask, n_token)
-                testset = scDataSet(test_data, config.n_bin, n_mask, n_token)
+                trainset = scDataSet(data, config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
+                testset = scDataSet(test_data, config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
             else:
-                trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, n_token)
-                testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, n_token)
+                trainset = scDataSet(data[idx_train_cells], config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
+                testset = scDataSet(data[idx_test_cells], config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
             print(f'len trainset: {len(trainset)}')
             print(f'len testset: {len(testset)}')
-            # get gene tokens
-            x_src = torch.tensor(vocab.get_token_ids()[1:])
+            # prepare tokens
+            gene_names = p.get_gene_tokens()
+            x_src = [vocab.vocab[gene] for gene in gene_names]
             print(f'x_src: {x_src}')
+            print(f'len x_src: {len(x_src)}')
+            # pad
+            vocab_size = len(vocab.vocab) - 1
+            x_src = torch.tensor(x_src)
+            print(f'vocab_size - config.n_token: {vocab_size - config.n_token}')
+            print(f'vocab_size : {vocab_size}')
+            print(f'config.n_token : {config.n_token}')
+            x_src = torch.cat([x_src, torch.full(size=(vocab_size - config.n_token,), fill_value=0)])
+            print(f'x_src: {x_src}')
+            print(f'len x_src: {len(x_src)}')
             print(f'x_src type: {type(x_src)}')
             # generate data loaders
             train_loader = DataLoader(trainset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             test_loader = DataLoader(testset, batch_size=config.batch_size, shuffle=True, num_workers=4)
             n_train = len(trainset)
             # set up model
-            # include the pad token again !
             model = TransformerModel(d_model=config.n_emb,
                                      dim_feedforward=config.dim_feedforward,
                                      nlayers=config.n_layer,
                                      n_input_bins=config.n_bin,
                                      n_token=n_token,
-                                     nhead=config.n_head)
+                                     nhead=config.n_head,
+                                     hvg_finetune=config.n_token,
+                                     finetune=True
+                                     )
+            # load model from file
+            model.load_state_dict(torch.load(self.model_path, map_location=torch.device('cpu')))
             wandb.watch(model, log='all', log_freq=np.ceil(n_train / self.batch_size))
             m = model.to(self.device)
             # print the number of parameters in the model
@@ -254,7 +218,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_pretrain_finetune_ep2_2.pth')
+            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_finetuned_2.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -319,12 +283,13 @@ if __name__ == '__main__':
     mlm_probability = None
     seed = 1234
     mean_non_zero_bins = 24
-    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_pretrain_finetune_1500_200.npy'
+    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_pretrain_finetune_1500_200.npy'
     path_tokens = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/token_1500.npy'
     path_extern_testset = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_100K_preprocessed_1500_testset.npy'
-    path_vocab = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1628_vocab.json'
+    path_vocab = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
-    dataset_path = '/mnt/qb/work/claassen/cxb257/data/heart/heart_100K.h5ad'
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/heart_endothelial_cell_of_artery.h5ad'
+    model_path='/mnt/qb/work/claassen/cxb257/models/heart/heart_large_pretrain_finetune_ep2.pth'
     # create model
     trainer = Trainer(
         batch_size=batch_size,
@@ -349,7 +314,8 @@ if __name__ == '__main__':
         path_preprocessed=path_preprocessed,
         path_tokens=path_tokens,
         path_extern_testset=path_extern_testset,
-        path_vocab=path_vocab
+        path_vocab=path_vocab,
+        model_path=model_path
     )
 
     trainer.train(dataset_path)
