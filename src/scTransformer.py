@@ -6,6 +6,7 @@ from typing import Optional, Dict
 # encoder layers are based on paper "Attention is all you need"
 from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmetrics import Accuracy
+import sys
 
 
 class TransformerModel(nn.Module):
@@ -16,9 +17,11 @@ class TransformerModel(nn.Module):
                  dim_feedforward: int,
                  nlayers: int,
                  n_input_bins: int,
+                 hvg_finetune: Optional[int] = None,
                  dropout: Optional[float] = None,
                  pad_token: str = "<pad>",
                  pad_value: int = 0,
+                 finetune: bool = False,
                  ):
         """
 
@@ -39,6 +42,9 @@ class TransformerModel(nn.Module):
         self.n_input_bins = n_input_bins
         self.n_token = n_token
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.finetune = finetune
+        if hvg_finetune:
+            self.hvg_finetune = hvg_finetune
 
         # define the gene encoder
         self.encoder = GeneEncoder(self.n_token, self.d_model, padding_idx=0)
@@ -243,6 +249,17 @@ class TransformerModel(nn.Module):
         Returns:
             predicted and ground truth expression of masked genes
         """
+        # for the finetune objective, all padding token need to be excluded from the computation
+        # print(f'mlm_output: {mlm_output.shape}')
+        # print(f'values: {values.shape}')
+        # print(f'key_padding_mask: {key_padding_mask.shape}')
+        if self.finetune:
+            mlm_output = mlm_output[:, :self.hvg_finetune, :]
+            values = values[:, :self.hvg_finetune]
+            key_padding_mask = key_padding_mask[:, :self.hvg_finetune]
+        # print(f'mlm_output: {mlm_output.shape}')
+        # print(f'values: {values.shape}')
+        # print(f'key_padding_mask: {key_padding_mask.shape}')
         masked_pred_exp = torch.Tensor([]).to(self.device)
         masked_label_exp = torch.Tensor([]).to(self.device)
         # print('get masked expressions')

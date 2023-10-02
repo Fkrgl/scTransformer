@@ -118,7 +118,7 @@ class Trainer:
             idx_rest = list(set(idx_all) - set(idx_test_cells))
             idx_train_cells = idx_rest
             # preprocess
-            p = Preprocessor(data, config.n_bin, self.min_counts_genes, config.n_token, vocab=None) # config.n_token is the number of hvgs for finetune dataset
+            p = Preprocessor(data, config.n_bin, vocab=None, min_counts_genes=self.min_counts_genes, n_hvg=config.n_token) # config.n_token is the number of hvgs for finetune dataset
             p.preprocess()
             # pad all genes that are not present in fintune dataset
             p._pad(len(vocab.vocab)-1)
@@ -141,21 +141,27 @@ class Trainer:
             # use random split for test/train or all of the data as train and a extern set as test
             if config.extern_testset:
                 test_data = np.load(self.path_extern_testset)
-                trainset = scDataSet(data, config.n_bin, n_mask, n_token, finetune=True, hvg_finetune=config.n_token)
-                testset = scDataSet(test_data, config.n_bin, n_mask, n_tokenfinetune=True, hvg_finetune=config.n_token)
+                trainset = scDataSet(data, config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
+                testset = scDataSet(test_data, config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
             else:
-                trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, n_tokenfinetune=True, hvg_finetune=config.n_token)
-                testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, n_token, finetune=True, hvg_finetune=config.n_token)
+                trainset = scDataSet(data[idx_train_cells], config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
+                testset = scDataSet(data[idx_test_cells], config.n_bin, config.mlm_probability, n_token, finetune=True, hvg_finetune=config.n_token)
             print(f'len trainset: {len(trainset)}')
             print(f'len testset: {len(testset)}')
             # prepare tokens
             gene_names = p.get_gene_tokens()
             x_src = [vocab.vocab[gene] for gene in gene_names]
+            print(f'x_src: {x_src}')
+            print(f'len x_src: {len(x_src)}')
             # pad
             vocab_size = len(vocab.vocab) - 1
             x_src = torch.tensor(x_src)
-            x_src = torch.cat([x_src, torch.full(size=vocab_size - data.shape[1], fill_value=0)])
+            print(f'vocab_size - config.n_token: {vocab_size - config.n_token}')
+            print(f'vocab_size : {vocab_size}')
+            print(f'config.n_token : {config.n_token}')
+            x_src = torch.cat([x_src, torch.full(size=(vocab_size - config.n_token,), fill_value=0)])
             print(f'x_src: {x_src}')
+            print(f'len x_src: {len(x_src)}')
             print(f'x_src type: {type(x_src)}')
             # generate data loaders
             train_loader = DataLoader(trainset, batch_size=config.batch_size, shuffle=True, num_workers=4)
@@ -167,7 +173,10 @@ class Trainer:
                                      nlayers=config.n_layer,
                                      n_input_bins=config.n_bin,
                                      n_token=n_token,
-                                     nhead=config.n_head)
+                                     nhead=config.n_head,
+                                     hvg_finetune=config.n_token,
+                                     finetune=True
+                                     )
             # load model from file
             model.load_state_dict(torch.load(self.model_path, map_location=torch.device('cpu')))
             wandb.watch(model, log='all', log_freq=np.ceil(n_train / self.batch_size))
@@ -209,7 +218,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_finetuned.pth')
+            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_finetuned_2.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -279,8 +288,8 @@ if __name__ == '__main__':
     path_extern_testset = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_100K_preprocessed_1500_testset.npy'
     path_vocab = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
-    dataset_path = '/mnt/qb/work/claassen/cxb257/data/heart/heart_100K.h5ad'
-    model_path=''
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/heart_endothelial_cell_of_artery.h5ad'
+    model_path='/mnt/qb/work/claassen/cxb257/models/heart/heart_large_pretrain_finetune_ep2.pth'
     # create model
     trainer = Trainer(
         batch_size=batch_size,

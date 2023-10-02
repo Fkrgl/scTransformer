@@ -15,7 +15,7 @@ class scDataSet(Dataset):
                  n_tokens: int,
                  finetune: bool = False,  # for finetuning, the src_key padding mask has to be adapted to include the padded
                                         # positions and no padded positions should be selected for masking
-                 hvg_finetune: Optional[str] = None
+                 hvg_finetune: Optional[int] = None
                  ):
         self.n_non_zero_bins = n_non_zero_bins
         print(f'masking prob real: {self.n_non_zero_bins}')
@@ -33,8 +33,8 @@ class scDataSet(Dataset):
         # get sample
         sample = torch.tensor(self.data[idx])
         # generate mask for sample
-        #mask = self.get_prob_mask(sample)
-        mask = self.get_balanced_mask(sample)
+        mask = self.get_prob_mask(sample)
+        #mask = self.get_balanced_mask(sample)
         #attn_mask = self.create_attention_mask(mask)
         attn_mask = torch.tensor([0])
         masked_sample = sample.detach().clone()
@@ -60,14 +60,21 @@ class scDataSet(Dataset):
             Boolean Tensor of shape (batch, n_token) with True where genes should be masked
 
         """
-        shape = expressions.shape
-        probability_matrix = torch.full(shape, self.n_non_zero_bins)
-        mask = torch.bernoulli(probability_matrix).bool()
+        if self.finetune:
+            shape = (self.hvg_finetune,)
+            probability_matrix = torch.full(shape, self.n_non_zero_bins)
+            probability_matrix = torch.cat([probability_matrix, torch.zeros(size=(self.n_tokens-self.hvg_finetune-1,))])
+            mask = torch.bernoulli(probability_matrix).bool()
+        else:
+            shape = expressions.shape
+            probability_matrix = torch.full(shape, self.n_non_zero_bins)
+            mask = torch.bernoulli(probability_matrix).bool()
         return mask
 
     def get_balanced_mask(self, sample):
         mask = np.zeros(self.n_tokens, dtype=bool)
         if self.finetune:
+            mask = np.zeros(self.n_tokens-1, dtype=bool)
             # mask all padding positions
             mask[self.hvg_finetune:] = True
             idx = np.arange(self.hvg_finetune)
@@ -123,7 +130,7 @@ if __name__ == '__main__':
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(data)
-    dataset = scDataSet(p.binned_data, 100, 0, 1628)
+    dataset = scDataSet(p.binned_data, 100, 0.15, 1628, finetune=True, hvg_finetune=200)
     sample, masked_sample, _ , mask = dataset.__getitem__(3)
     print(mask.sum())
     print(mask)

@@ -285,6 +285,7 @@ if __name__ == '__main__':
     # save to file
     if args.path_out:
         p.save_processed_data(args.path_out)
+        np.save(args.path_token, p.data.var.feature_name.values)
     if args.save_vocab:
         p.save_tokens(args.save_vocab, args.extend_vocab)
     # print(p.binned_data)

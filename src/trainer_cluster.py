@@ -254,7 +254,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_pretrain_finetune_ep2.pth')
+            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_pretrain_finetune_ep2_2.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
