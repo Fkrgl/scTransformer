@@ -1,6 +1,4 @@
-import sys
-
-from scTransformer import *
+from scGenerativeTransformer import *
 from preprocessor import Preprocessor
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -111,7 +109,6 @@ class Trainer:
         with wandb.init(config=config):
             # load and
             config = wandb.config
-            cell_type = config.cell_type
             vocab = GeneVocab()
             vocab.load_from_file(self.path_vocab)
             n_token = len(vocab.vocab)
@@ -142,7 +139,6 @@ class Trainer:
                 print(data)
                 print(np.unique(data))
                 print(f'loaded processed data shape: {data.shape}')
-                mean_non_zero_bins = self.mean_non_zero_bins
                 # split
                 n_train = int(0.9 * len(data))
                 n_test = int(len(data) - n_train)
@@ -151,25 +147,6 @@ class Trainer:
                 idx_rest = list(set(idx_all) - set(idx_test_cells))
                 idx_train_cells = idx_rest
             # split data
-            mask_prob = mean_non_zero_bins*2/n_token
-            print(f'number of tokens: {n_token}')
-            print(f'number of non zero bins: {mean_non_zero_bins}')
-            print(f'masked_genes/all_genes={mask_prob}')
-            print(f'randomization: {config.randomization}')
-            # adapt mean_non_zero_bins to desired mlm_prob
-            # n_mask = mean_non_zero_bins*2
-            # # keep masking prob below given masking prob
-            # if mask_prob > config.mlm_probability:
-            #     n_mask = int((n_token * config.mlm_probability) // 2)
-            # print(f'adapted masking={n_mask * 2 / n_token}')
-            # # use random split for test/train or all of the data as train and a extern set as test
-            # if config.extern_testset:
-            #     test_data = np.load(self.path_extern_testset)
-            #     trainset = scDataSet(data, config.n_bin, n_mask, n_token)
-            #     testset = scDataSet(test_data, config.n_bin, n_mask, n_token)
-            # else:
-            #     trainset = scDataSet(data[idx_train_cells], config.n_bin, n_mask, n_token)
-            #     testset = scDataSet(data[idx_test_cells], config.n_bin, n_mask, n_token)
             trainset = scDataSet(data[idx_train_cells], config.n_bin, config.mlm_probability, n_token-1) # exclude the pad token from masking
             testset = scDataSet(data[idx_test_cells], config.n_bin, config.mlm_probability, n_token-1)
             print(f'len trainset: {len(trainset)}')
@@ -184,7 +161,7 @@ class Trainer:
             n_train = len(trainset)
             # set up model
             # include the pad token again !
-            model = TransformerModel(d_model=config.n_emb,
+            model = scGenerativeTransformer(d_model=config.n_emb,
                                      dim_feedforward=config.dim_feedforward,
                                      nlayers=config.n_layer,
                                      n_input_bins=config.n_bin,
@@ -204,8 +181,7 @@ class Trainer:
                     # evaluate the loss
                     # print(f'shape of mask: {mask.shape}')
                     loss = model(x_src.to(self.device), x_val.to(self.device), masked_x_val.to(self.device),
-                                 attn_mask.to(self.device), mask.to(self.device), config.mask_type
-                                 , randomize_masked_positions=config.randomization)
+                                 attn_mask.to(self.device), mask.to(self.device), config.mask_type)
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
@@ -229,9 +205,9 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_endothelial_200_ep50.pth')
+            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_endothelial_200_ep50_generationObjective.pth')
 
-    def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
+    def get_test_loss_and_accuracy(self, model: scGenerativeTransformer, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
             -> Tuple[float, float]:
         """
@@ -243,8 +219,7 @@ class Trainer:
         loss = []
         for i, (x_val, masked_x_val, attn_mask, mask) in enumerate(test_loader):
             l, a = model(x_src.to(self.device), x_val.to(self.device), masked_x_val.to(self.device),
-                         attn_mask.to(self.device), mask.to(self.device), mask_type, get_accuracy=True,
-                         randomize_masked_positions=randomize_masked_positions)
+                         attn_mask.to(self.device), mask.to(self.device), mask_type, get_accuracy=True)
             loss.append(l.item())
             acc.append(a.item())
         model.train()
@@ -257,7 +232,7 @@ class Trainer:
         wandb.log({"epoch": epoch + 1, "train_loss": loss, "test_loss": test_loss, "test_accuracy": test_accuracy}
                   , step=epoch)
 
-    def get_valdiation_reconstructions(self, model: TransformerModel, test_loader: DataLoader, x_src: Tensor) -> Tensor:
+    def get_valdiation_reconstructions(self, model: scGenerativeTransformer, test_loader: DataLoader, x_src: Tensor) -> Tensor:
         model.eval()
         reconstructed_profiles = []
         val = []

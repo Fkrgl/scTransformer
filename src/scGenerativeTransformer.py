@@ -95,7 +95,7 @@ class scGenerativeTransformer(nn.Module):
         #     values = self.randomize_maked_position_encodeings(values, key_padding_mask)
         # combined embedding (broadcasting)
         total_embedding = src + values
-        output = self.transformer_encoder(total_embedding)
+        output = self.transformer_encoder(total_embedding, src_key_padding_mask=key_padding_mask)
 
         return output.to(self.device)  # (batch, seq_len, embsize)
 
@@ -106,9 +106,7 @@ class scGenerativeTransformer(nn.Module):
                 attn_mask: Tensor,
                 key_padding_mask: Tensor,
                 mask_type: str,
-                get_reconstruction: bool = False,
                 get_accuracy: bool = False,
-                randomize_masked_positions: bool = False
                 ):
         """
 
@@ -130,20 +128,13 @@ class scGenerativeTransformer(nn.Module):
         # each gene embedding gets its own expression value prediction
         mlm_output = self.generator(transformer_output)  # (batch, seq_len, n_bin)
         # get loss
-        loss = self.loss(masked_pred_exp, masked_label_exp)
+        print(f'lables.shape: {labels.shape}')
+        print(f'mlm_output.shape: {mlm_output.shape}')
+        loss = self.loss(mlm_output, labels)
         output = loss
-        # get reconstructed profiles
-        if get_reconstruction:
-            output = [mlm_output, masked_pred_exp, masked_label_exp]
-        # accuracy here
         # accuracy is only computed using masked values
         if get_accuracy:
-            # print(f'labels:\n {labels}')
-            # print(f'mask:\n {key_padding_mask}')
-            # print(f'masked_values:\n {masked_values}')
-            # print(f'masked_pred_exp:\n{masked_pred_exp}')
-            # print(f'masked_label_exp\n{masked_label_exp}')
-            acc_value = self.acc_function(masked_pred_exp, masked_label_exp)
+            acc_value = self.acc_function(mlm_output, labels)
             output = (loss, acc_value)
 
         return output

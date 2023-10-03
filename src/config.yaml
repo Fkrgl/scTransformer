@@ -7,7 +7,7 @@ parameters:
     n_epoch:
         value: 50
     mlm_probability:
-        value: 5
+        value: 0.15
     n_bin:
         value: 100
     n_token:
@@ -29,7 +29,7 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'heart endothelial'
+        value: 'heart endothelial / generation objective'
     do_preprocessing:
         value: False
     extern_testset:
