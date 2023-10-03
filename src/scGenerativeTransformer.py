@@ -8,6 +8,11 @@ from torch.nn import TransformerEncoder, TransformerEncoderLayer
 from torchmetrics import Accuracy
 
 class scGenerativeTransformer(nn.Module):
+    '''
+    The idea is to make the transformer more sample generating oriented. I will try to achive this by
+    letting the transformer as before generate expression profiles for the whole cell. But this time the
+    whole generated profile will be used in the loss function
+    '''
     def __init__(self,
                  d_model: int,
                  n_token: int,
@@ -52,7 +57,7 @@ class scGenerativeTransformer(nn.Module):
                                                  )
         self.transformer_encoder = TransformerEncoder(encoder_layers, nlayers)
         # one decoder for all genes
-        self.generator = SampleGenerator(self.d_model, self.n_input_bins)
+        self.generator = ExprDecoder(self.d_model, self.n_input_bins)
         self.index = np.arange(self.n_token)
 
         self.loss = nn.CrossEntropyLoss()
@@ -188,25 +193,22 @@ class ValueEncoder(nn.Module):
         x = self.enc_norm(x)
         return x
 
-class SampleGenerator(nn.Module):
-    '''
-    task head that functions as a sample generator
-    '''
+class ExprDecoder(nn.Module):
     def __init__(
-            self,
-            d_model: int,
-            n_bins: int,
-            use_batch_labels: bool = False
+        self,
+        d_model: int,
+        n_bins: int,
+        use_batch_labels: bool = False
     ):
         super().__init__()
         # how big should be the hidden layer?
         d_in = d_model
         self.fc = nn.Sequential(
-            nn.Linear(d_in, 2*d_model),
+            nn.Linear(d_in, d_model),
             nn.LeakyReLU(),
-            nn.Linear(2*d_model, 2*d_model),
+            nn.Linear(d_model, d_model),
             nn.LeakyReLU(),
-            nn.Linear(2*d_model, n_bins)
+            nn.Linear(d_model, n_bins)
         )
 
     def forward(self, x: Tensor) -> Dict[str, Tensor]:

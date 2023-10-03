@@ -113,66 +113,6 @@ class TransformerModel(nn.Module):
 
         return output.to(self.device)  # (batch, seq_len, embsize)
 
-    def randomize_maked_position_encodeings(self, output, key_padding_mask):
-        """
-        function takes the output of the transformer and randomizes the encodeings for all masked genes
-        """
-        # print(f'output:\n{output}')
-        rand = torch.FloatTensor(output.shape[0], output.shape[1], output.shape[2]).uniform_(-5, 5).to(self.device)
-        # print(f'rand\n{rand}')
-        output[key_padding_mask] = rand[key_padding_mask]
-        # print(f'mask\n{key_padding_mask}')
-        # print(f'new output\n{output}')
-        return output
-
-
-    def randomize_masked_positions(self, values, key_padding_mask):
-        '''
-        each masked value (TRUE in key_padding_mask) is assigned a random value. Unmasked values stay the same
-        Args:
-            values:
-            key_padding_mask:
-
-        Returns:
-
-        '''
-        values = values.cpu()
-        values = values.detach().numpy()
-        key_padding_mask = key_padding_mask.cpu()
-        key_padding_mask = key_padding_mask.detach().numpy()
-        # i = 5
-        # print(f'original value:\n{values[i]}')
-        random_val = np.random.choice(np.arange(self.n_input_bins), size=values.shape)
-        values[key_padding_mask] = random_val[key_padding_mask]
-        values = torch.tensor(values).to(self.device)
-
-        return values
-
-    def zero_masked_positions(self, values, key_padding_mask):
-        '''
-        each masked value (TRUE in key_padding_mask) is assigned a random value. Unmasked values stay the same
-        Args:
-            values:
-            key_padding_mask:
-
-        Returns:
-
-        '''
-        values = values.cpu()
-        values = values.detach().numpy()
-        key_padding_mask = key_padding_mask.cpu()
-        key_padding_mask = key_padding_mask.detach().numpy()
-        # i = 5
-        # print(f'original value:\n{values[i]}')
-        values[key_padding_mask] = 0
-        # print(f'mask:\n{key_padding_mask[i]}')
-        # print(f'modified value:\n{values[i]}')
-        # print(f'random:\n{random_val[i]}')
-        values = torch.tensor(values).to(self.device)
-
-        return values
-
-
     def forward(self,
                 src: Tensor,
                 values: Tensor,

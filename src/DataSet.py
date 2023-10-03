@@ -33,8 +33,8 @@ class scDataSet(Dataset):
         # get sample
         sample = torch.tensor(self.data[idx])
         # generate mask for sample
-        mask = self.get_prob_mask(sample)
-        #mask = self.get_balanced_mask(sample)
+        #mask = self.get_prob_mask(sample)
+        mask = self.get_balanced_mask(sample)
         #attn_mask = self.create_attention_mask(mask)
         attn_mask = torch.tensor([0])
         masked_sample = sample.detach().clone()

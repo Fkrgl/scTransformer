@@ -10,10 +10,10 @@
 IN_PATH=$1
 N_HVG=$2
 PATH_OUT=$3
-TOKEN_PATH=$4  # json
+VOCAB_PATH=$4  # json
 
 # create train set
-python preprocessor.py $IN_PATH $N_HVG -path_out $PATH_OUT -path_token $TOKEN_PATH
+python preprocessor.py $IN_PATH $N_HVG -path_out $PATH_OUT -save_vocab $VOCAB_PATH
 
 # create test set
 #python preprocessor.py $IN_PATH $N_HVG -path_out $OUT_PATH -subsample 100000

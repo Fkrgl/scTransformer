@@ -46,7 +46,7 @@ def process_data(data, n_input_bins, min_counts_genes, n_token):
     p.get_mean_number_of_nonZero_bins()
     return p
 
-def generate_samples(profiles, x_src, model):
+def generate_samples(profiles, x_src, model, finetune=False, hvg_finetune=200):
     '''
     Use each input profile to generate a new profile
     '''
@@ -55,6 +55,10 @@ def generate_samples(profiles, x_src, model):
     data_generated = []
     # mask where each value is False
     mask = torch.tensor(np.zeros_like(profiles[0], dtype=bool))
+    # mask all padded positions
+    if finetune:
+        mask[hvg_finetune:] = True
+    print(f'src_key_padding_mask True values: {mask.sum()}')
     for sample in profiles:
         sample = torch.tensor(sample)
         sample_profile = model.generate(x_src, sample, torch.tensor([0]), mask, 'src_key_padding_mask', bins, False)
@@ -107,48 +111,92 @@ def get_mean_profile(data):
 def save_exp_profiles(profiles, path: str):
     if not path.endswith('/'):
         path += '/'
-    np.save(path + 'heart_endothelial_200_10000.npy', profiles)
+    np.save(path + 'heart_endothelial_200_10000_fintune_paddedGenesMasked.npy', profiles)
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('model_path', type=str)
-    parser.add_argument('data_path', type=str)
-    parser.add_argument('token_path', type=str)
-    parser.add_argument('vocab_path', type=str)
-    parser.add_argument('n', type=int, help='number of samples to generate')
-    parser.add_argument('o', type=str, help='output dir for expression profiles')
-    args = parser.parse_args()
-    print(args.model_path)
-
+def run_pretrain_finetune(args):
+    '''
+    run the sample generation for a fintuned model. These models have more features than the small data set we want to
+    sample from
+    '''
     data = np.load(args.data_path)
-    gene_names = np.load(args.token_path, allow_pickle=True)
-    print(gene_names)
     vocab = GeneVocab()
     vocab.load_from_file(args.vocab_path)
 
-    # model parameters
+    # model parameters for large heart model
     d_model = 256
     n_token = len(vocab.vocab)
     nhead = 8
     dim_feedforward = 64
     nlayers = 4
     n_input_bins = 100
-    min_counts_genes = 10
 
     model = load_model(args.model_path, d_model, dim_feedforward, nlayers, n_input_bins, n_token, nhead)
+    gene_names = np.load(args.token_path, allow_pickle=True)
     # create src
     vocab_size = len(vocab.vocab) - 1
     token_hvg = data.shape[1]
     x_src = [vocab.vocab[gene] for gene in gene_names]
     x_src = torch.tensor(x_src)
     x_src = torch.cat([x_src, torch.full(size=(vocab_size - token_hvg,), fill_value=0)])
-    #profile = torch.zeros_like(x_src)
+    # profile = torch.zeros_like(x_src)
     profiles = get_subsample(data, args.n)
     # correct to right size of the model: 200 -> 1628
-    profiles = np.hstack([profiles, np.zeros(shape=(profiles.shape[0], vocab_size-token_hvg))])
+    profiles = np.hstack([profiles, np.zeros(shape=(profiles.shape[0], vocab_size - token_hvg))])
+    print(profiles.shape)
+    generated_profiles = generate_samples(profiles, x_src, model, finetune=True)
+    print(generated_profiles.shape)
+    # generated_profiles = generate_samples_one_sample(profile, x_src, model, args.n)
+    save_exp_profiles(np.vstack([profiles, generated_profiles]), args.o)
+
+def run(args):
+    '''
+    run the sample generation for a simple model (no pretrain-fintune)
+    '''
+    data = np.load(args.data_path)
+    vocab = GeneVocab()
+    vocab.load_from_file(args.vocab_path)
+
+    # model parameters for large heart model
+    d_model = 128
+    n_token = len(vocab.vocab)
+    nhead = 4
+    dim_feedforward = 32
+    nlayers = 4
+    n_input_bins = 100
+
+    model = load_model(args.model_path, d_model, dim_feedforward, nlayers, n_input_bins, n_token, nhead)
+    gene_names = vocab.get_tokens()[1:] # exclude pad token
+    # create src
+    x_src = [vocab.vocab[gene] for gene in gene_names]
+    x_src = torch.tensor(x_src)
+    # profile = torch.zeros_like(x_src)
+    profiles = get_subsample(data, args.n)
     print(profiles.shape)
     generated_profiles = generate_samples(profiles, x_src, model)
     print(generated_profiles.shape)
-    #generated_profiles = generate_samples_one_sample(profile, x_src, model, args.n)
-    save_exp_profiles(np.vstack([profiles ,generated_profiles]), args.o)
+    # generated_profiles = generate_samples_one_sample(profile, x_src, model, args.n)
+    save_exp_profiles(np.vstack([profiles, generated_profiles]), args.o)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('model_path', type=str)
+    parser.add_argument('data_path', type=str)
+    parser.add_argument('vocab_path', type=str)
+    parser.add_argument('n', type=int, help='number of samples to generate')
+    parser.add_argument('o', type=str, help='output dir for expression profiles')
+    parser.add_argument('-finetune', action='store_true', help='pretrain-fintune model is used for data generation')
+    parser.add_argument('-token_path', type=str, help='names of hvgs of the finteune dataset. These gene names are '
+                                                      'contained in the vocab file of the large model. However there is'
+                                                      'no information which 200 of the 1628 gene belong to the'
+                                                      ' finetune dataset')
+
+    args = parser.parse_args()
+
+    if args.finetune:
+        print('run fintune')
+        run_pretrain_finetune(args)
+    else:
+        run(args)
+
+if __name__ == '__main__':
+    main()

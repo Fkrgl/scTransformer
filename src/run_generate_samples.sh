@@ -9,9 +9,13 @@
 
 MODEL=$1
 DATA=$2
-TOKEN=$3
-VOCAB=$4
-N_SAMPLES=$5
-OUT=$6
+VOCAB=$3
+N_SAMPLES=$4
+OUT=$5
+TOKEN=$6
 
-python simple_sample.py $MODEL $DATA $TOKEN $VOCAB $N_SAMPLES $OUT
+# pretrain finetune
+python simple_sample.py $MODEL $DATA $VOCAB $N_SAMPLES $OUT -finetune -token_path $TOKEN
+
+# normal
+#python simple_sample.py $MODEL $DATA $VOCAB $N_SAMPLES $OUT
