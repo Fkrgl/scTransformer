@@ -205,7 +205,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_endothelial_200_ep50_generationObjective.pth')
+            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_endothelial_200_ep50_generationObjective_inverseMask.pth')
 
     def get_test_loss_and_accuracy(self, model: scGenerativeTransformer, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \

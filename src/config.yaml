@@ -29,7 +29,7 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'heart endothelial / generation objective'
+        value: 'heart endothelial / generation objective / inverse mask'
     do_preprocessing:
         value: False
     extern_testset:

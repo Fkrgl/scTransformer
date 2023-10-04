@@ -1,4 +1,6 @@
 import json
+import sys
+import numpy as np
 
 class GeneVocab:
     """
@@ -47,3 +49,15 @@ class GeneVocab:
         """
         with open(path_file, 'r') as f:
             self.vocab = json.load(f)
+
+# if __name__ == '__main__':
+#     token_path = sys.argv[1]
+#     out_vocab_path = sys.argv[2]
+#     token = np.load(token_path, allow_pickle=True)
+#     print(token)
+#     v = GeneVocab()
+#     v.init()
+#     v.extend(token)
+#     print(v.vocab)
+#     v.save_to_file(out_vocab_path)
+

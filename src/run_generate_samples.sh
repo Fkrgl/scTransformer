@@ -15,7 +15,7 @@ OUT=$5
 TOKEN=$6
 
 # pretrain finetune
-python simple_sample.py $MODEL $DATA $VOCAB $N_SAMPLES $OUT -finetune -token_path $TOKEN
+#python simple_sample.py $MODEL $DATA $VOCAB $N_SAMPLES $OUT -finetune -token_path $TOKEN
 
 # normal
-#python simple_sample.py $MODEL $DATA $VOCAB $N_SAMPLES $OUT
+python simple_sample.py $MODEL $DATA $VOCAB $N_SAMPLES $OUT

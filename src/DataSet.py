@@ -47,7 +47,8 @@ class scDataSet(Dataset):
         """
         only take mlmProb % of the non zero gene for masking
         """
-        mask = np.zeros(self.n_tokens, dtype=bool)
+        #mask = np.zeros(self.n_tokens, dtype=bool)
+        mask = np.ones(self.n_tokens, dtype=bool)
         non_zero_idx = sample.nonzero()[0]
         n_non_zero_gene = len(non_zero_idx)
         # select maksing at random
@@ -59,7 +60,8 @@ class scDataSet(Dataset):
         else:
             idx_masked = np.random.choice(non_zero_idx, n_masked, replace=False)
 
-        mask[idx_masked] = True
+        #mask[idx_masked] = True
+        mask[idx_masked] = False
         return mask
 
 if __name__ == '__main__':

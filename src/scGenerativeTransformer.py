@@ -43,6 +43,7 @@ class scGenerativeTransformer(nn.Module):
         self.n_input_bins = n_input_bins
         self.n_token = n_token
         self.device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        self.n_gene = self.n_token - 1
 
         # define the gene encoder
         self.encoder = GeneEncoder(self.n_token, self.d_model)
@@ -121,23 +122,76 @@ class scGenerativeTransformer(nn.Module):
         """
         # if test samples are processed, randomize masked positions
         # print(f'values: {values[0]}')
-        labels = values.clone().to(self.device)
+        target = values.clone().to(self.device)
         transformer_output = self._encode(src, masked_values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # if get_accuracy:
         #     transformer_output = self.randomize_maked_position_encodeings(transformer_output, key_padding_mask)
         # each gene embedding gets its own expression value prediction
         mlm_output = self.generator(transformer_output)  # (batch, seq_len, n_bin)
         # get loss
-        print(f'lables.shape: {labels.shape}')
-        print(f'mlm_output.shape: {mlm_output.shape}')
-        loss = self.loss(mlm_output, labels)
+        # reshape input and target for loss
+        mlm_output, target = self.reshape_for_loss(mlm_output, target)
+        loss = self.loss(mlm_output, target)
         output = loss
         # accuracy is only computed using masked values
         if get_accuracy:
-            acc_value = self.acc_function(mlm_output, labels)
+            acc_value = self.acc_function(mlm_output, target)
             output = (loss, acc_value)
 
         return output
+    def reshape_for_loss(self, input_, target):
+        '''
+        reshape input and target tensor got the cross entorpy loss function.
+        Args:
+            input_: (batch, genes, bins)
+            target: (batch, genes)
+
+        Returns:
+            input_: ((batch x genes), bins)
+            target: ((batch x genes), 1)
+
+        '''
+        N = target.shape[0]  # batch size
+        target = torch.reshape(target, ((N*self.n_gene),))
+        input_ = torch.reshape(input_, ((N*self.n_gene), self.n_input_bins))
+        return input_, target
+    def generate(self,
+                 src: Tensor,
+                 values: Tensor,
+                 attn_mask: Tensor,
+                 key_padding_mask: Tensor,
+                 mask_type: str,
+                 bins,
+                 get_accuracy: bool
+                 ):
+        n_gen = self.n_token-1
+        # embedd genes of target cell and feed in transformer encoder
+        encoder_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
+        # decode transformer encoded gene vectors
+        decoder_output = self.generator(encoder_output)
+        # print(f'decoder_output_shape: {decoder_output.shape}')
+        # get softmax
+        s = nn.Softmax(dim=1)
+        softmax_output = s(decoder_output)
+        # print(softmax_output.sum(dim=0))
+        # print(softmax_output.sum(dim=0).shape)
+        # print(f'softmax:\n{softmax_output}')
+        # print(softmax_output[0].sum())
+        # print(softmax_output[0].shape)
+        # sample from softmax
+        #np.save('/home/claassen/cxb257/scTransformer/data/heart_endothelial_decoderOutput.npy', decoder_output.detach().numpy())
+        sample_profile = np.zeros(shape=n_gen)
+        # print(softmax_output[0])
+        # print(softmax_output[0].shape)
+        # print(softmax_output[0].sum())
+        for i in range(n_gen-1):
+            # maybe the softmax is too strict
+            prob = softmax_output[i].detach().numpy()
+            #print(f'prob: {prob}')
+            assert len(prob) == len(bins)
+            bin = np.random.choice(bins, size=1, p=prob)
+            sample_profile[i] = bin
+        return sample_profile
 
 class GeneEncoder(nn.Module):
     """
