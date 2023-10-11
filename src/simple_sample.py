@@ -158,10 +158,10 @@ def run_pretrain_finetune(args):
     # correct to right size of the model: 200 -> 1628
     profiles = np.hstack([profiles, np.zeros(shape=(profiles.shape[0], vocab_size - token_hvg))])
     print(profiles.shape)
-    generated_profiles = generate_samples(profiles, x_src, model, finetune=True)
+    #generated_profiles = generate_samples(profiles, x_src, model, finetune=True)
     sample = profiles[0]
     n_samples = 10000
-    generate_sample_sequence(sample, x_src, model, n_samples, finetune=True)
+    generated_profiles = generate_sample_sequence(sample, x_src, model, n_samples, finetune=True)
     print(generated_profiles.shape)
     # generated_profiles = generate_samples_one_sample(profile, x_src, model, args.n)
     save_exp_profiles(np.vstack([profiles, generated_profiles]), args.o)
@@ -194,7 +194,9 @@ def run(args):
     nlayers = 4
     n_input_bins = 100
 
-    model = load_Transformer_model(args.model_path, d_model, dim_feedforward, nlayers, n_input_bins, n_token, nhead)
+    print(f'n_token: {n_token}')
+    #model = load_Transformer_model(args.model_path, d_model, dim_feedforward, nlayers, n_input_bins, n_token, nhead)
+    model = load_Transformer_model(args.model_path, d_model, dim_feedforward, nlayers, n_input_bins, n_token, nhead) # Spleen
     #gene_names = vocab.get_tokens()[1:] # exclude pad token
     # THIS CODE ONLY FOR SPLEEN
     gene_names = vocab.get_tokens()
@@ -231,6 +233,7 @@ def main():
         print('run fintune')
         run_pretrain_finetune(args)
     else:
+        print('normal run')
         run(args)
 
 if __name__ == '__main__':

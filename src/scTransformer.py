@@ -217,7 +217,7 @@ class TransformerModel(nn.Module):
                  bins,
                  get_accuracy: bool
                  ):
-        n_gen = self.n_token-1
+        n_gen = self.n_token-1 # exclude pad token
         # embedd genes of target cell and feed in transformer encoder
         encoder_output = self._encode(src, values, attn_mask, key_padding_mask, mask_type, get_accuracy)
         # decode transformer encoded gene vectors
