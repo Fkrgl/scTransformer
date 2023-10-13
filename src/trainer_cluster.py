@@ -229,7 +229,7 @@ class Trainer:
                 #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
                 #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
                 # save model
-            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_endothelial_200_ep50.pth')
+            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/pbmc/pbmc_threeCellTypes_ep2.pth')
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -281,7 +281,7 @@ if __name__ == '__main__':
     n_token = 200
     n_epoch = 150
     eval_interval = 100
-    learning_rate = 3e-4
+    learning_rate = 1e-4
     eval_iters = 10
     split = 0.9
     n_embd = 10
@@ -294,10 +294,10 @@ if __name__ == '__main__':
     mlm_probability = None
     seed = 1234
     mean_non_zero_bins = 24
-    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_endothelial_cell_of_artery_200.npy'
+    path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/pbmc/pbmc_1862.npy'
     path_tokens = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/token_1500.npy'
     path_extern_testset = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_100K_preprocessed_1500_testset.npy'
-    path_vocab = '/mnt/qb/work/claassen/cxb257/data/heart/heart_endothelial_200_vocab.json'
+    path_vocab = '/mnt/qb/work/claassen/cxb257/data/preprocessed/pbmc/pbmc_vocab_extended.json'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
     dataset_path = '/mnt/qb/work/claassen/cxb257/data/heart/heart_100K.h5ad'
     # create model

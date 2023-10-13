@@ -1,17 +1,19 @@
-program: /home/claassen/cxb257/scTransformer/src/trainer_cluster.py
+program: /home/claassen/cxb257/scTransformer/src/trainer_finetune.py
 method: grid
 metric:
   name: test_loss
   goal: minimize
 parameters:
+    learning_rate:
+        value: 1e-4
     n_epoch:
-        value: 2
+        value: 100
     mlm_probability:
         value: 12
     n_bin:
         value: 100
     n_token:
-        value: 1862
+        value: 200
     n_emb:
         value: 256
     n_head:
@@ -21,7 +23,7 @@ parameters:
     n_layer:
         value: 4
     batch_size:
-        value: 6
+        value: 7
     cell_type:
         value: 'None'
     mask_type:
@@ -29,8 +31,8 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'pmbc model for three cell types'
+        value: 'pmbc model fintuned for CD4 positive subset'
     do_preprocessing:
-        value: False
+        value: True
     extern_testset:
         value: False

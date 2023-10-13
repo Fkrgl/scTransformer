@@ -65,10 +65,10 @@ class Preprocessor:
                            )
 
         # filter by counts of cell
-        # min_counts_cell = None
-        # sc.pp.filter_cells(data,
-        #                    min_counts=min_counts_cell
-        # )
+        min_counts_cell = 1
+        sc.pp.filter_cells(self.data,
+                           min_counts=min_counts_cell
+        )
 
         # normalize counts
         sc.pp.normalize_total(self.data)
@@ -267,11 +267,12 @@ if __name__ == '__main__':
 
     # load dataset
     anndata = scp.read_h5ad(args.path_in)
+    # anndata = anndata[anndata.obs.cell_type == 'dendritic cell']
 
     # preprocess
     vocab = GeneVocab()
-    vocab.load_from_file('/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json')
-    p = Preprocessor(anndata, 100, n_hvg=args.n_hvg, vocab=None)
+    vocab.load_from_file('/mnt/qb/work/claassen/cxb257/data/preprocessed/pbmc/pbmc_vocab_extended.json')
+    p = Preprocessor(anndata, 100, n_hvg=args.n_hvg, vocab=vocab)
     p.preprocess()
     p.get_mean_number_of_nonZero_bins()
     print(f'mean number of non zero bins: {p.mean_non_zero_bins}')

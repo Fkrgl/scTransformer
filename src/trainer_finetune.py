@@ -15,6 +15,7 @@ from DataSet import scDataSet
 import wandb
 from typing import Tuple
 from GeneVocab import GeneVocab
+from Early_stopper import EarlyStopper
 
 class Trainer:
     def __init__(self,
@@ -39,6 +40,7 @@ class Trainer:
                  path_extern_testset: str,
                  path_vocab: str,
                  model_path: str,
+                 finetune_model_path: str,
                  seed: Optional[int] = None,
                  subset: Optional[int] = None,
                  test_mode: Optional[bool] = False,
@@ -89,6 +91,7 @@ class Trainer:
         self.path_extern_testset = path_extern_testset
         self.path_vocab = path_vocab
         self.model_path = model_path
+        self.finetune_model_path = finetune_model_path
         print(f'cuda available: {torch.cuda.is_available()}')
         print(f'device: {self.device}')
         print(torch.zeros(1).cuda())
@@ -111,7 +114,7 @@ class Trainer:
             print(f'data set has shape {data.shape}')
             data.obs.reset_index(inplace=True)
             # split for not omit any cell type
-            n_train = int(0.9 * len(data))
+            n_train = int(self.split * len(data))
             n_test = int(len(data) - n_train)
             idx_all = np.arange(len(data))
             idx_test_cells = np.random.choice(idx_all, size=n_test, replace=False)
@@ -184,7 +187,9 @@ class Trainer:
             # print the number of parameters in the model
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
-            optimizer = torch.optim.AdamW(model.parameters(), lr=self.learning_rate)
+            optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
+            # initialize EarlyStopper
+            early_stopper = EarlyStopper(patients=5)
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
@@ -200,25 +205,19 @@ class Trainer:
                     optimizer.step()
                     train_loss.append(loss.item())
 
-                # after each epoch, get test loss
-                # add if clausal to evaluate only after x epochs
-                # print('test..')
                 train_loss = np.mean(train_loss)
                 test_loss, test_accuracy = self.get_test_loss_and_accuracy(model, test_loader, x_src
                                                                            , config.randomization, config.mask_type)
                 print(f'epoch: {epoch + 1}/{config.n_epoch}, train error = {train_loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(train_loss, test_loss, test_accuracy, epoch)
-                # get model predictions
-                # if epoch in check_instances:
-                #     val_input, reconstructed_profiles, masks = self.get_valdiation_reconstructions(model, test_loader, x_src)
-                #     print(reconstructed_profiles.shape)
-                #     print(val_input.shape)
-                #     torch.save(reconstructed_profiles, f'../data/predictions_{config.cell_type}_epoch_{epoch}.pt')
-                #     torch.save(val_input, f'../data/input_{config.cell_type}_epoch_{epoch}.pt')
-                #     torch.save(masks, f'../data/masks_{config.cell_type}_epoch_{epoch}.pt')
-                # save model
-            torch.save(m.state_dict(), '/mnt/qb/work/claassen/cxb257/models/heart/heart_large_finetuned_2.pth')
+
+                # early stopping
+                early_stopper.save_model_state(epoch=epoch, state_dict=m.state_dict(), current_loss=test_loss)
+                if early_stopper.do_stop:
+                    early_stopper.save_best_model(self.finetune_model_path)
+                    print("Early stopping!")
+                    break
 
     def get_test_loss_and_accuracy(self, model: TransformerModel, test_loader: DataLoader,
                                    x_src: Tensor, randomize_masked_positions: bool, mask_type: str) \
@@ -270,7 +269,7 @@ if __name__ == '__main__':
     n_token = 200
     n_epoch = 150
     eval_interval = 100
-    learning_rate = 3e-4
+    learning_rate = 1e-4
     eval_iters = 10
     split = 0.9
     n_embd = 10
@@ -280,16 +279,17 @@ if __name__ == '__main__':
     n_bin = 200
     dropout = 0.5
     min_counts_genes = 10
-    mlm_probability = None
+    mlm_probability = 3
     seed = 1234
     mean_non_zero_bins = 24
     path_preprocessed = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_1Mio_pretrain_finetune_1500_200.npy'
     path_tokens = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/token_1500.npy'
     path_extern_testset = '/mnt/qb/work/claassen/cxb257/data/preprocessed/heart/heart_100K_preprocessed_1500_testset.npy'
-    path_vocab = '/mnt/qb/work/claassen/cxb257/data/heart/heart_1Mio_1500_vocab.json'
+    path_vocab = '/mnt/qb/work/claassen/cxb257/data/pbmc/pbmc_vocab_extended.json'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
-    dataset_path = '/mnt/qb/work/claassen/cxb257/data/cellxgene/heart_endothelial_cell_of_artery.h5ad'
-    model_path='/mnt/qb/work/claassen/cxb257/models/heart/heart_large_pretrain_finetune_ep2.pth'
+    dataset_path = '/mnt/qb/work/claassen/cxb257/data/pbmc/CD4_positive_subset.h5ad'
+    model_path='/mnt/qb/work/claassen/cxb257/models/pbmc/pbmc_threeCellTypes_ep2.pth.pth'
+    finetune_model_path = '/mnt/qb/work/claassen/cxb257/models/pbmc/pbmc_CD4_finetune.pth'
     # create model
     trainer = Trainer(
         batch_size=batch_size,
@@ -315,7 +315,8 @@ if __name__ == '__main__':
         path_tokens=path_tokens,
         path_extern_testset=path_extern_testset,
         path_vocab=path_vocab,
-        model_path=model_path
+        model_path=model_path,
+        finetune_model_path=finetune_model_path
     )
 
     trainer.train(dataset_path)

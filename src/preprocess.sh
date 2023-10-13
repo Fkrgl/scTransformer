@@ -10,10 +10,13 @@
 IN_PATH=$1
 N_HVG=$2
 PATH_OUT=$3
-VOCAB_PATH=$4  # json
+#VOCAB_PATH=$3  # json
 
 # create train set
-python preprocessor.py $IN_PATH $N_HVG -path_out $PATH_OUT -save_vocab $VOCAB_PATH
+python preprocessor.py $IN_PATH $N_HVG -path_out $PATH_OUT
+
+# create extend vocab of pretrain by hvgs of finetune
+# python preprocessor.py $IN_PATH $N_HVG -save_vocab $VOCAB_PATH -extend_vocab True
 
 # create test set
 #python preprocessor.py $IN_PATH $N_HVG -path_out $OUT_PATH -subsample 100000
