@@ -43,6 +43,8 @@ def plot_UMAP_binned_data(exp_profiles, umap_path, name):
 
     umap_2d = UMAP(n_components=2, init='random', random_state=0)
     proj_2d = umap_2d.fit_transform(data_pca)
+    data_path = '~/scTransformer/data/umap_pbmc_binned_pca50.npy'
+    save_umap_dataset(proj_2d, data_path)
 
     fig = plt.figure(figsize=(10, 7))
     plt.scatter(proj_2d[:, 0], proj_2d[:, 1], s=10, alpha=.3, label='data')
@@ -64,6 +66,10 @@ def get_exp_profiles(p, data):
 
     data_preprocessed = np.vstack(data_preprocessed)
     return data_preprocessed
+
+def save_umap_dataset(umap_data, path):
+    np.save(path, umap_data)
+
 
 def main():
     parser = argparse.ArgumentParser()

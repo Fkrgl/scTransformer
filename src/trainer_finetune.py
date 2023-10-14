@@ -189,14 +189,14 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
-            train_steps = config.n_epoch * config.batch_size
-            warm_up = int(0.15 * train_steps)
-            scheduler = transformers.get_linear_schedule_with_warmup(optimizer=optimizer,
-                                                                     num_warmup_steps=warm_up,
-                                                                     num_training_steps=train_steps
-                                                                     )
+            # train_steps = config.n_epoch * len(train_loader) #config.batch_size
+            # warm_up = int(0.15 * train_steps)
+            # scheduler = transformers.get_linear_schedule_with_warmup(optimizer=optimizer,
+            #                                                          num_warmup_steps=warm_up,
+            #                                                          num_training_steps=train_steps
+            #                                                          )
             # initialize EarlyStopper
-            early_stopper = EarlyStopper(patients=10)
+            early_stopper = EarlyStopper(patients=20)
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
@@ -210,7 +210,7 @@ class Trainer:
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
-                    scheduler.step()
+                    #scheduler.step()
                     train_loss.append(loss.item())
 
                 train_loss = np.mean(train_loss)
@@ -219,7 +219,7 @@ class Trainer:
                 print(f'epoch: {epoch + 1}/{config.n_epoch}, train error = {train_loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(train_loss, test_loss, test_accuracy, epoch)
-                print(f'current lr: {scheduler.get_last_lr():.4f}')
+                #print(f'current lr: {scheduler.get_lr()}')
 
                 # early stopping
                 early_stopper.save_model_state(epoch=epoch, state_dict=m.state_dict(), current_loss=test_loss)
