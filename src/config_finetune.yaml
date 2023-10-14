@@ -7,9 +7,9 @@ parameters:
     learning_rate:
         value: 1e-4
     n_epoch:
-        value: 100
+        value: 50
     mlm_probability:
-        value: 12
+        value: 4
     n_bin:
         value: 100
     n_token:
@@ -31,7 +31,7 @@ parameters:
     randomization:
         value: False
     tissue:
-        value: 'pmbc model fintuned for CD4 positive subset'
+        value: 'pmbc model fintuned for CD4 positive subset with lr schdeuler'
     do_preprocessing:
         value: True
     extern_testset:

@@ -12,7 +12,7 @@
 
 WANDB_PROJECT=$1
 SWEEP_ID=$2
-
+WANDB__SERVICE_WAIT=300
 #wandb login c697f25b0981fe76f7062d1c3fec4872f9f9c469
 wandb agent -p $WANDB_PROJECT $SWEEP_ID
 #cd /project_path && PYTHONPATH=/project_path WANDB_ENTITY=entity WANDB_PROJECT=project wandb agent $2

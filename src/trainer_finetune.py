@@ -16,6 +16,7 @@ import wandb
 from typing import Tuple
 from GeneVocab import GeneVocab
 from Early_stopper import EarlyStopper
+import transformers
 
 class Trainer:
     def __init__(self,
@@ -188,8 +189,14 @@ class Trainer:
             print(sum(p.numel() for p in m.parameters()), 'parameters')
             # create a PyTorch optimizer
             optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
+            train_steps = config.n_epoch * config.batch_size
+            warm_up = int(0.15 * train_steps)
+            scheduler = transformers.get_linear_schedule_with_warmup(optimizer=optimizer,
+                                                                     num_warmup_steps=warm_up,
+                                                                     num_training_steps=train_steps
+                                                                     )
             # initialize EarlyStopper
-            early_stopper = EarlyStopper(patients=5)
+            early_stopper = EarlyStopper(patients=10)
             # training loop
             for epoch in range(config.n_epoch):
                 # print('train..')
@@ -203,6 +210,7 @@ class Trainer:
                     optimizer.zero_grad(set_to_none=True)
                     loss.backward()
                     optimizer.step()
+                    scheduler.step()
                     train_loss.append(loss.item())
 
                 train_loss = np.mean(train_loss)
@@ -211,6 +219,7 @@ class Trainer:
                 print(f'epoch: {epoch + 1}/{config.n_epoch}, train error = {train_loss:.4f}, test error = {test_loss:.4f}'
                       f', accuracy = {test_accuracy:.4f}')
                 self.train_log(train_loss, test_loss, test_accuracy, epoch)
+                print(f'current lr: {scheduler.get_last_lr():.4f}')
 
                 # early stopping
                 early_stopper.save_model_state(epoch=epoch, state_dict=m.state_dict(), current_loss=test_loss)
@@ -288,7 +297,7 @@ if __name__ == '__main__':
     path_vocab = '/mnt/qb/work/claassen/cxb257/data/pbmc/pbmc_vocab_extended.json'
     #dataset_path = '/mnt/qb/work/claassen/cxb257/data/Pancreas/endocrinogenesis_day15.h5ad'
     dataset_path = '/mnt/qb/work/claassen/cxb257/data/pbmc/CD4_positive_subset.h5ad'
-    model_path='/mnt/qb/work/claassen/cxb257/models/pbmc/pbmc_threeCellTypes_ep2.pth.pth'
+    model_path='/mnt/qb/work/claassen/cxb257/models/pbmc/pbmc_threeCellTypes_ep2.pth'
     finetune_model_path = '/mnt/qb/work/claassen/cxb257/models/pbmc/pbmc_CD4_finetune.pth'
     # create model
     trainer = Trainer(

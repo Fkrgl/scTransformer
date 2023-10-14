@@ -36,6 +36,20 @@ def plot_UMAP(exp_profiles, umap_path, name):
 
     plt.savefig(umap_path)
 
+def plot_UMAP_binned_data(exp_profiles, umap_path, name):
+    pca = PCA(n_components=50)
+    data_pca = pca.fit_transform(exp_profiles)
+    data_pca = np.round(data_pca, decimals=5)
+
+    umap_2d = UMAP(n_components=2, init='random', random_state=0)
+    proj_2d = umap_2d.fit_transform(data_pca)
+
+    fig = plt.figure(figsize=(10, 7))
+    plt.scatter(proj_2d[:, 0], proj_2d[:, 1], s=10, alpha=.3, label='data')
+    plt.title(f'UMAP of {name}')
+
+    plt.savefig(umap_path)
+
 def get_exp_profiles(p, data):
     '''
     translates bin values from expression value of a dataset into continous expression values
@@ -51,8 +65,7 @@ def get_exp_profiles(p, data):
     data_preprocessed = np.vstack(data_preprocessed)
     return data_preprocessed
 
-
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_path', type=str, help='path to input data in h5ad format')
     parser.add_argument('umap_path', type=str, help='path to save UMAP plot')
@@ -60,14 +73,19 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # load data
-    anndata = load_data(args.data_path)
-    # preprocess
-    n_token = 500
-    n_input_bins = 100
-    min_counts_genes = 10
+    # # load data
+    # anndata = load_data(args.data_path)
+    # # preprocess
+    # n_token = 500
+    # n_input_bins = 100
+    # min_counts_genes = 10
+    #
+    # p = process_data(anndata, n_input_bins, min_counts_genes, n_token)
+    # data = p.binned_data
+    # exp_profiles = get_exp_profiles(p, data)
+    # plot_UMAP(exp_profiles, args.umap_path, args.name)
+    data = np.load(args.data_path, allow_pickle=True)
+    plot_UMAP_binned_data(data, args.umap_path, args.name)
 
-    p = process_data(anndata, n_input_bins, min_counts_genes, n_token)
-    data = p.binned_data
-    exp_profiles = get_exp_profiles(p, data)
-    plot_UMAP(exp_profiles, args.umap_path, args.name)
+if __name__ == '__main__':
+    main()
