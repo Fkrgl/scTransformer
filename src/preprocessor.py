@@ -236,6 +236,12 @@ class Preprocessor:
         random_indices = np.random.choice(self.binned_data.shape[0], n_sample, replace=False)
         self.binned_data = self.binned_data[random_indices, :]
 
+    def save_cell_types(self):
+        celltypes = self.data.obs.cell_type
+        celltypes = np.array(celltypes)
+        print(len(celltypes))
+        print(celltypes)
+
 
 
 
@@ -267,7 +273,6 @@ if __name__ == '__main__':
 
     # load dataset
     anndata = scp.read_h5ad(args.path_in)
-    # anndata = anndata[anndata.obs.cell_type == 'dendritic cell']
 
     # preprocess
     vocab = GeneVocab()
